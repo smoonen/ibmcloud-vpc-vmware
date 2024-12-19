@@ -1,0 +1,9 @@
+*~
+*.out
+*.pyc
+bin/*
+include/*
+lib/*
+pyvenv.cfg
+inventory.py
+
