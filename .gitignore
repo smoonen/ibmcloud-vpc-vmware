@@ -6,4 +6,5 @@ include/*
 lib/*
 pyvenv.cfg
 inventory.py
+inventory.ps1
 
