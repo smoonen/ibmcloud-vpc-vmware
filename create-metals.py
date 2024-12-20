@@ -30,14 +30,30 @@ print("sg_id = '%s'" % sg_id)
 # Create three hosts
 for host in ('host001', 'host002', 'host003') :
   # Create three VNIs; two for PCI interfaces and one for VLAN interface
-  pci1_id = vpclib.create_or_retrieve_vni(inventory.host_subnet_id, "smoonen-vni-%s-pci1" % host, sg_id)
-  print("%s_pci1_id = '%s'" % (host, pci1_id))
-  pci2_id = vpclib.create_or_retrieve_vni(inventory.host_subnet_id, "smoonen-vni-%s-pci2" % host, sg_id)
-  print("%s_pci2_id = '%s'" % (host, pci2_id))
-  vlan_id = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, "smoonen-vni-%s-vlan1" % host, sg_id)
-  print("%s_vlan_id = '%s'" % (host, vlan_id))
-  vlan_details = vpclib.get_vni(vlan_id)
-  print("%s_vlan_ip = '%s'" % (host, vlan_details['ips'][0]['address']))
+  vmnic0_id = vpclib.create_or_retrieve_vni(inventory.host_subnet_id, "smoonen-vni-%s-vmnic0" % host, sg_id)
+  print("%s_vmnic0_id = '%s'" % (host, vmnic0_id))
+  print("%s_vmnic0_ip = '%s'" % (host, vpclib.get_vni(vmnic0_id)['ips'][0]['address']))
+
+  vmnic1_id = vpclib.create_or_retrieve_vni(inventory.host_subnet_id, "smoonen-vni-%s-vmnic1" % host, sg_id)
+  print("%s_vmnic1_id = '%s'" % (host, vmnic1_id))
+  print("%s_vmnic1_ip = '%s'" % (host, vpclib.get_vni(vmnic1_id)['ips'][0]['address']))
+
+  vmk0_id = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, "smoonen-vni-%s-vmk0-mgmt" % host, sg_id)
+  print("%s_vmk0_mgmt_id = '%s'" % (host, vmk0_id))
+  print("%s_vmk0_mgmt_ip = '%s'" % (host, vpclib.get_vni(vmk0_id)['ips'][0]['address']))
+
+  # The following will have both a dedicated vmnic and vmknic; I've settled on vmnic for naming convention
+  vmnic2_id = vpclib.create_or_retrieve_vni(inventory.vmotion_subnet_id, "smoonen-vni-%s-vmnic2-vmotion" % host, sg_id)
+  print("%s_vmnic2_vmotion_id = '%s'" % (host, vmnic2_id))
+  print("%s_vmnic2_vmotion_ip = '%s'" % (host, vpclib.get_vni(vmnic2_id)['ips'][0]['address']))
+
+  vmnic3_id = vpclib.create_or_retrieve_vni(inventory.vsan_subnet_id, "smoonen-vni-%s-vmnic3-vsan" % host, sg_id)
+  print("%s_vmnic3_vsan_id = '%s'" % (host, vmnic3_id))
+  print("%s_vmnic3_vsan_ip = '%s'" % (host, vpclib.get_vni(vmnic3_id)['ips'][0]['address']))
+
+  vmnic4_id = vpclib.create_or_retrieve_vni(inventory.tep_subnet_id, "smoonen-vni-%s-vmnic4-tep" % host, sg_id)
+  print("%s_vmnic4_tep_id = '%s'" % (host, vmnic4_id))
+  print("%s_vmnic4_tep_ip = '%s'" % (host, vpclib.get_vni(vmnic4_id)['ips'][0]['address']))
 
   # Create bare metal
   bm_model = {
@@ -49,9 +65,12 @@ for host in ('host001', 'host002', 'host003') :
                                      'keys'  : [ { 'id' : key_id } ] },
     'trusted_platform_module'    : { 'mode' : 'tpm_2' },
     'enable_secure_boot'         : True,
-    'primary_network_attachment' : pci_network_attachment('vmnic0', pci1_id),
-    'network_attachments'        : [ pci_network_attachment('vmnic1', pci2_id),
-                                     vlan_network_attachment('vmk0', vlan_id, 1, False) ]
+    'primary_network_attachment' : pci_network_attachment('vmnic0', vmnic0_id),
+    'network_attachments'        : [ pci_network_attachment('vmnic1', vmnic1_id),
+                                     pci_network_attachment('vmnic2', vmnic2_id),
+                                     pci_network_attachment('vmnic3', vmnic3_id),
+                                     pci_network_attachment('vmnic4', vmnic4_id),
+                                     vlan_network_attachment('vmk0', vmk0_id, 1, False) ]
   }
   bm_id = vpclib.create_or_retrieve_bare_metal(bm_model)
   print("%s_bm_id = '%s'" % (host, bm_id))

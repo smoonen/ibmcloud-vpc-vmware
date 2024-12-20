@@ -2,7 +2,6 @@ from ibm_vpc import VpcV1
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 import sshkey_tools.keys
 from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives import hashes
 import inventory
 
 # TODO: account for pagination in searches
