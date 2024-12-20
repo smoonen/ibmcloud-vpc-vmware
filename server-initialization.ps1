@@ -22,6 +22,7 @@ Get-VirtualPortGroup -Name "Old Management Network" | Remove-VirtualPortGroup
 # The following assumes that the DNS service has already been created, configured, and connected to this VPC
 Get-VMHostNetworkStack -Name defaultTcpipStack | Set-VMHostNetworkStack -DNSAddress 161.26.0.7,161.26.0.8 -DomainName example.com -HostName host001
 New-VMHostRoute -Destination 0.0.0.0 -PrefixLength 0 -Gateway 192.168.2.1
+Add-VMHostNTPServer -NTPServer 161.26.0.6
 
 ########################
 # Connect to second host
@@ -42,6 +43,7 @@ Get-VirtualPortGroup -Name "Old Management Network" | Remove-VirtualPortGroup
 # The following assumes that the DNS service has already been created, configured, and connected to this VPC
 Get-VMHostNetworkStack -Name defaultTcpipStack | Set-VMHostNetworkStack -DNSAddress 161.26.0.7,161.26.0.8 -DomainName example.com -HostName host002
 New-VMHostRoute -Destination 0.0.0.0 -PrefixLength 0 -Gateway 192.168.2.1
+Add-VMHostNTPServer -NTPServer 161.26.0.6
 
 #######################
 # Connect to third host
@@ -62,4 +64,5 @@ Get-VirtualPortGroup -Name "Old Management Network" | Remove-VirtualPortGroup
 # The following assumes that the DNS service has already been created, configured, and connected to this VPC
 Get-VMHostNetworkStack -Name defaultTcpipStack | Set-VMHostNetworkStack -DNSAddress 161.26.0.7,161.26.0.8 -DomainName example.com -HostName host003
 New-VMHostRoute -Destination 0.0.0.0 -PrefixLength 0 -Gateway 192.168.2.1
+Add-VMHostNTPServer -NTPServer 161.26.0.6
 
