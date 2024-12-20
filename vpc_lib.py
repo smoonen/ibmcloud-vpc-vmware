@@ -1,4 +1,5 @@
 from ibm_vpc import VpcV1
+from ibm_cloud_networking_services import DnsSvcsV1
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 import sshkey_tools.keys
 from cryptography.hazmat.primitives.asymmetric import padding
@@ -10,8 +11,10 @@ class VPClib :
   def __init__(self, region = 'eu-gb', api_key = inventory.api_key) :
     self.region = region
     authenticator = IAMAuthenticator(api_key)
-    self.service = VpcV1(authenticator=authenticator)
+    self.service = VpcV1(authenticator = authenticator)
     self.service.set_service_url('https://%s.iaas.cloud.ibm.com/v1' % region)
+    self.dnssvc = DnsSvcsV1(authenticator = authenticator)
+    self.dnssvc.set_service_url('https://api.dns-svcs.cloud.ibm.com/v1/')
 
   def create_or_retrieve_vpc(self, name) :
     vpcs = self.service.list_vpcs()
