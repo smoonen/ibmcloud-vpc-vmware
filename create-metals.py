@@ -61,6 +61,13 @@ for host in ('host001', 'host002', 'host003') :
   print("%s_vmnic4_tep_ip = '%s'" % (host, vpclib.get_vni(vmnic4_id)['ips'][0]['address']))
 
   # Create bare metal
+  network_attachments = [ pci_network_attachment('vmnic1', vmnic1_id),
+                          pci_network_attachment('vmnic2', vmnic2_id),
+                          pci_network_attachment('vmnic3', vmnic3_id),
+                          pci_network_attachment('vmnic4', vmnic4_id),
+                          vlan_network_attachment('vmk0', vmk0_id, 1, False) ]
+  if host == 'host001' :
+    network_attachments.append(vlan_network_attachment('vcenter', vcenter_id, 1, True))
   bm_model = {
     'vpc'                        : { 'id' : inventory.vpc_id },
     'zone'                       : zone1,
@@ -71,11 +78,7 @@ for host in ('host001', 'host002', 'host003') :
     'trusted_platform_module'    : { 'mode' : 'tpm_2' },
     'enable_secure_boot'         : True,
     'primary_network_attachment' : pci_network_attachment('vmnic0', vmnic0_id),
-    'network_attachments'        : [ pci_network_attachment('vmnic1', vmnic1_id),
-                                     pci_network_attachment('vmnic2', vmnic2_id),
-                                     pci_network_attachment('vmnic3', vmnic3_id),
-                                     pci_network_attachment('vmnic4', vmnic4_id),
-                                     vlan_network_attachment('vmk0', vmk0_id, 1, False) ]
+    'network_attachments'        : network_attachments
   }
   bm_id = vpclib.create_or_retrieve_bare_metal(bm_model)
   print("%s_bm_id = '%s'" % (host, bm_id))
