@@ -4,7 +4,6 @@ from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 import sshkey_tools.keys
 from cryptography.hazmat.primitives.asymmetric import padding
 import inventory
-import pprint
 import urllib.parse
 
 class VPCiterator :
@@ -12,22 +11,18 @@ class VPCiterator :
     self.f = f
     self.listname = listname
     self.result = None
-    self.finished = False
 
   def __iter__(self) :
     self.result = self.f(limit = 5).result
     return self
 
   def __next__(self) :
-    if self.finished :
-      raise StopIteration
     if len(self.result[self.listname]) == 0 :
       if 'next' in self.result :
         parse = urllib.parse.urlparse(self.result['next']['href'])
         query = urllib.parse.parse_qs(parse.query)
         self.result = self.f(start = query['start']).result
       else :
-        self.finished = True
         raise StopIteration
     nextitem = self.result[self.listname].pop(0)
     return nextitem
@@ -152,8 +147,4 @@ class VPClib :
   def get_floating_ip(self, fip_id) :
     response = self.service.get_floating_ip(fip_id)
     return response.result
-
-  def get_vnis(self) :
-    i = VPCiterator(self.service.list_virtual_network_interfaces, 'virtual_network_interfaces')
-    pprint.pprint(list(i))
 
