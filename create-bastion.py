@@ -19,12 +19,13 @@ image_id = windows_images[0]['id']
 # Create security group
 sg_rules = list(map(lambda x : { 'direction' : 'inbound', 'ip_version' : 'ipv4', 'protocol' : 'all', 'remote' : { 'address' : x } }, inventory.allowed_ips))
 sg_rules.append({ 'direction' : 'outbound', 'ip_version' : 'ipv4', 'protocol' : 'all' })
-sg_id = vpclib.create_or_retrieve_security_group(inventory.vpc_id, sg_rules, 'smoonen-sg-gpvpn')
-print("sg_id = '%s'" % sg_id)
+sg = vpclib.create_or_retrieve_security_group(inventory.vpc_id, sg_rules, 'smoonen-sg-firewall')
+print("sg_id = '%s'" % sg['id'])
 
 # Create VNI
-vni_id = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, 'smoonen-vni-bastion', sg_id)
-print("vni_id = '%s'" % vni_id)
+vni = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, 'smoonen-vni-bastion', sg['id'])
+print("vni_id = '%s'" % vni['id'])
+print("vni_ip = '%s'" % vni['ips'][0]['address'])
 
 # Create RSA key
 try :
@@ -32,8 +33,8 @@ try :
 except :
   rsa_priv = sshkey_tools.keys.RsaPrivateKey.generate()
   print("rsa_private_key = \"\"\"%s\"\"\"" % rsa_priv.to_string())
-key_id = vpclib.create_or_retrieve_key(rsa_priv.public_key.to_string(), 'smoonen-rsakey', 'rsa')
-print("key_id = '%s'" % key_id)
+key = vpclib.create_or_retrieve_key(rsa_priv.public_key.to_string(), 'smoonen-rsakey', 'rsa')
+print("key_id = '%s'" % key['id'])
 
 # Create virtual server instance
 vsi_model = {
@@ -42,7 +43,7 @@ vsi_model = {
   'name'                   : 'smoonen-vsi-bastion',
   'profile'                : { 'name' : 'bx2-2x8' },
   'image'                  : { 'id': image_id },
-  'keys'                   : [ { 'id' : key_id } ],
+  'keys'                   : [ { 'id' : key['id'] } ],
   'volume_attachments'     : [ ],
   'boot_volume_attachment' : { 'volume' : {
                                  'name'     : 'smoonen-bastion-bootvol',
@@ -50,13 +51,13 @@ vsi_model = {
                                  'profile'  : { 'name' : 'general-purpose' } },
                                'delete_volume_on_instance_delete' : True },
   'primary_network_attachment' : { 'name'                      : 'eth0',
-                                   'virtual_network_interface' : { 'id' : vni_id } },
+                                   'virtual_network_interface' : { 'id' : vni['id'] } },
 }
-vsi_id = vpclib.create_or_retrieve_vsi(vsi_model)
-print("vsi_id = '%s'" % vsi_id)
+vsi = vpclib.create_or_retrieve_vsi(vsi_model)
+print("vsi_id = '%s'" % vsi['id'])
 
 # Get instance initialization information
-init = vpclib.get_instance_initialization(vsi_id)
+init = vpclib.get_instance_initialization(vsi['id'])
 
 # Decrypt Administrator password
 password = rsa_priv.key.decrypt(base64.decodebytes(bytes(init['password']['encrypted_password'], 'ascii')), padding.PKCS1v15())
@@ -65,7 +66,7 @@ print("password = '%s'" % password.decode('ascii'))
 # Note: the key object is attached to the VSI for the life of the VSI and cannot be removed at this point
 
 # Create and attach floating IP
-fip_id = vpclib.create_or_retrieve_floating_ip(vni_id, 'smoonen-bastion-fip')
-print("fip_id = '%s'" % fip_id)
-print("fip_ip = '%s'" % vpclib.get_floating_ip(fip_id)['address'])
+fip = vpclib.create_or_retrieve_floating_ip(vni['id'], 'smoonen-bastion-fip')
+print("fip_id = '%s'" % fip['id'])
+print("fip_ip = '%s'" % fip['address'])
 

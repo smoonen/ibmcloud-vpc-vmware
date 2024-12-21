@@ -79,46 +79,45 @@ class VPClib :
     response = self.service.set_subnet_public_gateway(subnet_id, { 'id' : gateway_id })
 
   def list_images(self) :
-    response = self.service.list_images()
-    return response.result['images']
+    return VPCiterator(self.service.list_images, 'images')
 
   def create_or_retrieve_security_group(self, vpc_id, rules, name) :
-    groups = self.service.list_security_groups(vpc_id = vpc_id)
-    for group in groups.result['security_groups'] :
+    def helper(**kwargs) :
+      return self.service.list_security_groups(vpc_id = vpc_id, **kwargs)
+    for group in VPCiterator(helper, 'security_groups') :
       if group['name'] == name :
-        return group['id']
+        return group
     response = self.service.create_security_group({ 'id' : vpc_id }, name = name, rules = rules)
-    return response.result['id']
+    return response.result
 
   # There are several forms of VNI creation that can attach at creation time.
   # This form attaches to a subnet and so the VPC and zone are implicit.
   def create_or_retrieve_vni(self, subnet_id, name, security_group = None) :
-    vnis = self.service.list_virtual_network_interfaces()
-    for vni in vnis.result['virtual_network_interfaces'] :
+    for vni in VPCiterator(self.service.list_virtual_network_interfaces, 'virtual_network_interfaces') :
       if vni['name'] == name :
-        return vni['id']
+        return vni
     response = self.service.create_virtual_network_interface(name = name, subnet = { 'id' : subnet_id }, allow_ip_spoofing = True, enable_infrastructure_nat = True, protocol_state_filtering_mode = 'auto', security_groups = [ { 'id' : security_group }])
-    return response.result['id']
+    return response.result
 
   def get_vni(self, vni_id) :
     response = self.service.get_virtual_network_interface(id = vni_id)
     return response.result
 
   def create_or_retrieve_key(self, key, name, key_type) :
-    keys = self.service.list_keys()
-    for key in keys.result['keys'] :
+    for key in VPCiterator(self.service.list_keys, 'keys') :
       if key['name'] == name :
-        return key['id']
+        return key
     response = self.service.create_key(key, name = name, type = key_type)
-    return response.result['id']
+    return response.result
 
   def create_or_retrieve_vsi(self, model) :
-    vsis = self.service.list_instances(vpc_id = model['vpc']['id'])
-    for vsi in vsis.result['instances'] :
+    def helper(**kwargs) :
+      return self.service.list_instances(vpc_id = model['vpc']['id'], **kwargs)
+    for vsi in VPCiterator(helper, 'instances') :
       if vsi['name'] == model['name'] :
-        return vsi['id']
+        return vsi
     response = self.service.create_instance(model)
-    return response.result['id']
+    return response.result
 
   def get_instance_initialization(self, vsi_id) :
     response = self.service.get_instance_initialization(vsi_id)
@@ -137,14 +136,11 @@ class VPClib :
     return response.result
 
   def create_or_retrieve_floating_ip(self, vni_id, name) :
-    fips = self.service.list_floating_ips(target_id = vni_id)
-    for fip in fips.result['floating_ips'] :
+    def helper(**kwargs) :
+      return self.service.list_floating_ips(target_id = vni_id, **kwargs)
+    for fip in VPCiterator(helper, 'floating_ips') :
       if fip['name'] == name :
-        return fip['id']
+        return fip
     response = self.service.create_floating_ip({ 'name' : name, 'target' : { 'id' : vni_id } })
-    return response.result['id']
-
-  def get_floating_ip(self, fip_id) :
-    response = self.service.get_floating_ip(fip_id)
     return response.result
 
