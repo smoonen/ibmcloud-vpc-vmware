@@ -4,8 +4,33 @@ from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
 import sshkey_tools.keys
 from cryptography.hazmat.primitives.asymmetric import padding
 import inventory
+import pprint
+import urllib.parse
 
-# TODO: account for pagination in searches
+class VPCiterator :
+  def __init__(self, f, listname) :
+    self.f = f
+    self.listname = listname
+    self.result = None
+    self.finished = False
+
+  def __iter__(self) :
+    self.result = self.f(limit = 5).result
+    return self
+
+  def __next__(self) :
+    if self.finished :
+      raise StopIteration
+    if len(self.result[self.listname]) == 0 :
+      if 'next' in self.result :
+        parse = urllib.parse.urlparse(self.result['next']['href'])
+        query = urllib.parse.parse_qs(parse.query)
+        self.result = self.f(start = query['start']).result
+      else :
+        self.finished = True
+        raise StopIteration
+    nextitem = self.result[self.listname].pop(0)
+    return nextitem
 
 class VPClib :
   def __init__(self, region = 'eu-gb', api_key = inventory.api_key) :
@@ -17,26 +42,27 @@ class VPClib :
     self.dnssvc.set_service_url('https://api.dns-svcs.cloud.ibm.com/v1/')
 
   def create_or_retrieve_vpc(self, name) :
-    vpcs = self.service.list_vpcs()
-    for vpc in vpcs.result['vpcs'] :
+    for vpc in VPCiterator(self.service.list_vpcs, 'vpcs') :
       if vpc['name'] == name :
-        return vpc['id']
+        return vpc
     response = self.service.create_vpc(address_prefix_management = 'manual', name = name)
-    return response.result['id']
+    return response.result
 
   def create_or_retrieve_prefix(self, vpc_id, cidr, zone, name, is_default) :
-    prefixes = self.service.list_vpc_address_prefixes(vpc_id)
-    for prefix in prefixes.result['address_prefixes'] :
+    def helper(**kwargs) :
+      return self.service.list_vpc_address_prefixes(vpc_id, **kwargs)
+    for prefix in VPCiterator(helper, 'address_prefixes') :
       if prefix['name'] == name :
-        return prefix['id']
+        return prefix
     response = self.service.create_vpc_address_prefix(vpc_id, cidr, zone, is_default = is_default, name = name)
-    return response.result['id']
+    return response.result
 
   def create_or_retrieve_subnet(self, vpc_id, cidr, zone, name) :
-    subnets = self.service.list_subnets(vpc_id = vpc_id)
-    for subnet in subnets.result['subnets'] :
+    def helper(**kwargs) :
+      return self.service.list_subnets(vpc_id = vpc_id, **kwargs)
+    for subnet in VPCiterator(helper, 'subnets') :
       if subnet['name'] == name :
-        return subnet['id']
+        return subnet
     subnet_model = {
       'vpc'             : { 'id' : vpc_id },
       'ip_version'      : 'ipv4',
@@ -45,15 +71,14 @@ class VPClib :
       'name'            : name
     }
     response = self.service.create_subnet(subnet_model)
-    return response.result['id']
+    return response.result
 
   def create_or_retrieve_public_gateway(self, vpc_id, zone, name) :
-    gateways = self.service.list_public_gateways()
-    for gateway in gateways.result['public_gateways'] :
+    for gateway in VPCiterator(self.service.list_public_gateways, 'public_gateways') :
       if gateway['name'] == name :
-        return gateway['id']
+        return gateway
     response = self.create_public_gateway({ 'id' : vpc_id }, zone, name)
-    return response.result['id']
+    return response.result
 
   def attach_public_gateway(self, subnet_id, gateway_id) :
     response = self.service.set_subnet_public_gateway(subnet_id, { 'id' : gateway_id })
@@ -127,4 +152,8 @@ class VPClib :
   def get_floating_ip(self, fip_id) :
     response = self.service.get_floating_ip(fip_id)
     return response.result
+
+  def get_vnis(self) :
+    i = VPCiterator(self.service.list_virtual_network_interfaces, 'virtual_network_interfaces')
+    pprint.pprint(list(i))
 

@@ -39,11 +39,13 @@ For the latter vmnics, it is tempting to use the PCI IP address for the correspo
 
 Here is my vmknic and virtual machine addressing scheme:
 
-- Management (also used for management VMs like vCenter) - 192.168.1.0/24, VLAN 1
-- vMotion - 192.168.2.0/24, VLAN 2
-- vSAN - 192.168.3.0/24, VLAN 3
-- TEPs (also used for edges) - 192.168.4.0/24, VLAN 4
-- Uplinks (used exclusively for edges and not for vmknic) - 192.168.5.0/24, VLAN 5
+- [vmk1] Management (also used for management VMs like vCenter) - 192.168.2.0/24, VLAN 2
+- [vmk0] vMotion - 192.168.3.0/24, VLAN 3
+- [vmk2] vSAN - 192.168.4.0/24, VLAN 4
+- TEPs (also used for edges) - 192.168.5.0/24, VLAN 5
+- Uplinks (used exclusively for edges and not for vmknic) - 192.168.6.0/24, VLAN 6
+
+The vmknic ids are reversed because my simplistic way of moving the host's management IP results in recreating the management vmknic.
 
 Note that, other than vmnic0, ESXi does not necessarily perceive the physical interfaces in the same order that they were supplied at the time the bare metal server was created. Since it is difficult to customize the MAC address for a vmnic (in order to force the expected order), I take the approach instead of discovering the order after the host is provisioned. What this means is that I must customize the list of allowed VLANs on each PCI subsequent to creating the bare metal.
 
