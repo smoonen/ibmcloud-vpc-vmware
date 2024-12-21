@@ -1,13 +1,12 @@
 from vpc_lib import VPClib
 import sshkey_tools.keys
 from cryptography.hazmat.primitives.asymmetric import padding
-import base64
+import base64, time
 import inventory
-import sys
 
 # Commonalities and helper methods
 zone1 = { 'name' : 'eu-gb-1' }
-pci_network_attachment = lambda name, vni_id : { 'name' : name, 'virtual_network_interface' : { 'id' : vni_id }, 'allowed_vlans' : [1,2,3,4,5,6,7,8,9,10], 'interface_type' : 'pci' }
+pci_network_attachment = lambda name, vni_id, allowed_vlans = [] : { 'name' : name, 'virtual_network_interface' : { 'id' : vni_id }, 'interface_type' : 'pci', 'allowed_vlans' : allowed_vlans }
 vlan_network_attachment = lambda name, vni_id, vlan, allow_float : { 'name' : name, 'virtual_network_interface' : { 'id' : vni_id }, 'allow_to_float' : allow_float, 'interface_type' : 'vlan', 'vlan' : vlan }
 
 vpclib = VPClib()
@@ -30,44 +29,54 @@ print("sg_id = '%s'" % sg['id'])
 # Create vCenter VNI
 vcenter = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, "smoonen-vni-vcenter", sg['id'])
 print("vcenter_id = '%s'" % vcenter['id'])
+while vcenter['ips'][0]['address'] == '0.0.0.0' :
+  time.sleep(1)
+  vcenter = vpclib.get_vni(vcenter['id'])
 print("vcenter_ip = '%s'" % vcenter['ips'][0]['address'])
 
 # Create three hosts
 for host in ('host001', 'host002', 'host003') :
-  # Create three VNIs; two for PCI interfaces and one for VLAN interface
+  # Create the VNIs for PCI / vmnic
+
+  # vmnic0 - management; this is the only vmnic whose IP address is used, for bootstrapping purposes
+  # This is also the only vmnic where we will initially set allowed VLANS (below), to [2]
   vmnic0 = vpclib.create_or_retrieve_vni(inventory.host_subnet_id, "smoonen-vni-%s-vmnic0" % host, sg['id'])
   print("%s_vmnic0_id = '%s'" % (host, vmnic0['id']))
+  while vmnic0['ips'][0]['address'] == '0.0.0.0' :
+    time.sleep(1)
+    vmnic0 = vpclib.get_vni(vmnic0['id'])
   print("%s_vmnic0_ip = '%s'" % (host, vmnic0['ips'][0]['address']))
 
-  vmnic1 = vpclib.create_or_retrieve_vni(inventory.host_subnet_id, "smoonen-vni-%s-vmnic1" % host, sg['id'])
-  print("%s_vmnic1_id = '%s'" % (host, vmnic1['id']))
-  print("%s_vmnic1_ip = '%s'" % (host, vmnic1['ips'][0]['address']))
+  # The remaining vmnics are used for management, vMotion, vSAN, TEPs, and uplinks.
+  # However, the order in which they are consumed by ESXi is unpredictable.
+  # You should not expect that the PCI index (1-5) matches the vmnic index, and therefore we cannot set allowed VLANs yet.
+  additional_networks = []
+  for x in range(1, 6) :
+    vni = vpclib.create_or_retrieve_vni(inventory.host_subnet_id, "smoonen-vni-%s-pci%d" % (host, x), sg['id'])
+    print("%s_pci%d_id = '%s'" % (host, x, vni['id']))
+    additional_networks.append(pci_network_attachment('pci%d' % x, vni['id']))
 
-  vmk0 = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, "smoonen-vni-%s-vmk0-mgmt" % host, sg['id'])
-  print("%s_vmk0_mgmt_id = '%s'" % (host, vmk0['id']))
-  print("%s_vmk0_mgmt_ip = '%s'" % (host, vmk0['ips'][0]['address']))
+  # Create the VNIs for VLAN / vmknic
+  # Note that there is a reversal between management and vMotion because of the crude way in which we are reconfiguring the host management IP.
+  # Note also that we are leaving TEP and uplink management for later.
+  # Because we aren't assigning most allowed VLANs at this time, we won't be able to attach the vMotion and vSAN VNIs. We will create them now but save attachment for later.
+  vmk_models = ( { 'name' : 'vmk1', 'purpose' : 'mgmt', 'vlan' : 2, 'float' : True, 'attach' : True },
+                 { 'name' : 'vmk0', 'purpose' : 'vmotion', 'attach' : False },
+                 { 'name' : 'vmk2', 'purpose' : 'vsan', 'attach' : False } )
+  for vmk_model in vmk_models :
+    vni = vpclib.create_or_retrieve_vni(getattr(inventory, vmk_model['purpose'] + '_subnet_id'), "smoonen-vni-%s-%s-%s" % (host, vmk_model['name'], vmk_model['purpose']), sg['id'])
+    while vni['ips'][0]['address'] == '0.0.0.0' :
+      time.sleep(1)
+      vni = vpclib.get_vni(vni['id'])
+    print("%s_%s_%s_ip = '%s'" % (host, vmk_model['name'], vmk_model['purpose'], vni['ips'][0]['address']))
+    if vmk_model['attach'] :
+      additional_networks.append(vlan_network_attachment(vmk_model['name'], vni['id'], vmk_model['vlan'], vmk_model['float']))
 
-  # The following will have both a dedicated vmnic and vmknic; I've settled on vmnic for naming convention
-  vmnic2 = vpclib.create_or_retrieve_vni(inventory.vmotion_subnet_id, "smoonen-vni-%s-vmnic2-vmotion" % host, sg['id'])
-  print("%s_vmnic2_vmotion_id = '%s'" % (host, vmnic2['id']))
-  print("%s_vmnic2_vmotion_ip = '%s'" % (host, vmnic2['ips'][0]['address']))
-
-  vmnic3 = vpclib.create_or_retrieve_vni(inventory.vsan_subnet_id, "smoonen-vni-%s-vmnic3-vsan" % host, sg['id'])
-  print("%s_vmnic3_vsan_id = '%s'" % (host, vmnic3['id']))
-  print("%s_vmnic3_vsan_ip = '%s'" % (host, vmnic3['ips'][0]['address']))
-
-  vmnic4 = vpclib.create_or_retrieve_vni(inventory.tep_subnet_id, "smoonen-vni-%s-vmnic4-tep" % host, sg['id'])
-  print("%s_vmnic4_tep_id = '%s'" % (host, vmnic4['id']))
-  print("%s_vmnic4_tep_ip = '%s'" % (host, vmnic4['ips'][0]['address']))
+  # Add vCenter to first host
+  if host == 'host001' :
+    additional_networks.append(vlan_network_attachment('vcenter', vcenter['id'], 2, True))
 
   # Create bare metal
-  network_attachments = [ pci_network_attachment('vmnic1', vmnic1['id']),
-                          pci_network_attachment('vmnic2', vmnic2['id']),
-                          pci_network_attachment('vmnic3', vmnic3['id']),
-                          pci_network_attachment('vmnic4', vmnic4['id']),
-                          vlan_network_attachment('vmk0', vmk0['id'], 1, False) ]
-  if host == 'host001' :
-    network_attachments.append(vlan_network_attachment('vcenter', vcenter['id'], 1, True))
   bm_model = {
     'vpc'                        : { 'id' : inventory.vpc_id },
     'zone'                       : zone1,
@@ -77,14 +86,14 @@ for host in ('host001', 'host002', 'host003') :
                                      'keys'  : [ { 'id' : key['id'] } ] },
     'trusted_platform_module'    : { 'mode' : 'tpm_2' },
     'enable_secure_boot'         : True,
-    'primary_network_attachment' : pci_network_attachment('vmnic0', vmnic0['id']),
-    'network_attachments'        : network_attachments
+    'primary_network_attachment' : pci_network_attachment('vmnic0', vmnic0['id'], [2]),
+    'network_attachments'        : additional_networks
   }
-  bm_id = vpclib.create_or_retrieve_bare_metal(bm_model)
-  print("%s_bm_id = '%s'" % (host, bm_id))
+  bm = vpclib.create_or_retrieve_bare_metal(bm_model)
+  print("%s_bm_id = '%s'" % (host, bm['id']))
 
   # Get server initialization information
-  init = vpclib.get_bare_metal_initialization(bm_id)
+  init = vpclib.get_bare_metal_initialization(bm['id'])
 
   if len(init['user_accounts']) == 0 :
     print("%s_password = 'unset'" % host)

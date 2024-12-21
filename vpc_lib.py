@@ -124,12 +124,13 @@ class VPClib :
     return response.result
 
   def create_or_retrieve_bare_metal(self, model) :
-    bare_metals = self.service.list_bare_metal_servers(vpc_id = model['vpc']['id'])
-    for bare_metal in bare_metals.result['bare_metal_servers'] :
+    def helper(**kwargs) :
+      return self.service.list_bare_metal_servers(vpc_id = model['vpc']['id'], **kwargs)
+    for bare_metal in VPCiterator(helper, 'bare_metal_servers') :
       if bare_metal['name'] == model['name'] :
-        return bare_metal['id']
+        return bare_metal
     response = self.service.create_bare_metal_server(model)
-    return response.result['id']
+    return response.result
 
   def get_bare_metal_initialization(self, bm_id) :
     response = self.service.get_bare_metal_server_initialization(bm_id)

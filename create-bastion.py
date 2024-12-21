@@ -1,7 +1,7 @@
 from vpc_lib import VPClib
 import sshkey_tools.keys
 from cryptography.hazmat.primitives.asymmetric import padding
-import base64
+import base64, time
 import inventory
 
 # Commonalities
@@ -25,6 +25,9 @@ print("sg_id = '%s'" % sg['id'])
 # Create VNI
 vni = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, 'smoonen-vni-bastion', sg['id'])
 print("vni_id = '%s'" % vni['id'])
+while vni['ips'][0]['address'] == '0.0.0.0' :
+  time.sleep(1)
+  vni = vpclib.get_vni(vni['id'])
 print("vni_ip = '%s'" % vni['ips'][0]['address'])
 
 # Create RSA key
