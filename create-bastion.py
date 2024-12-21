@@ -67,4 +67,5 @@ print("password = '%s'" % password.decode('ascii'))
 # Create and attach floating IP
 fip_id = vpclib.create_or_retrieve_floating_ip(vni_id, 'smoonen-bastion-fip')
 print("fip_id = '%s'" % fip_id)
+print("fip_ip = '%s'" % vpclib.get_floating_ip(fip_id)['address'])
 

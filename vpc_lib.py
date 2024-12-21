@@ -124,3 +124,7 @@ class VPClib :
     response = self.service.create_floating_ip({ 'name' : name, 'target' : { 'id' : vni_id } })
     return response.result['id']
 
+  def get_floating_ip(self, fip_id) :
+    response = self.service.get_floating_ip(fip_id)
+    return response.result
+
