@@ -103,6 +103,12 @@ class VPClib :
     response = self.service.get_virtual_network_interface(id = vni_id)
     return response.result
 
+  def get_vni_by_name(self, vni_name) :
+    for vni in VPCiterator(self.service.list_virtual_network_interfaces, 'virtual_network_interfaces') :
+      if vni['name'] == vni_name :
+        return vni
+    return None
+
   def create_or_retrieve_key(self, key, name, key_type) :
     for key in VPCiterator(self.service.list_keys, 'keys') :
       if key['name'] == name :
@@ -145,6 +151,13 @@ class VPClib :
     def helper(**kwargs) :
       return self.service.list_bare_metal_server_network_interfaces(bm_id, **kwargs)
     return VPCiterator(helper, 'network_interfaces')
+
+  def create_or_retrieve_bare_metal_attachment(self, bm_id, attachment) :
+    for existing in self.get_bare_metal_network_attachments(bm_id) :
+      if existing['name'] == attachment['name'] :
+        return existing
+    response = self.service.create_bare_metal_server_network_attachment(bm_id, attachment)
+    return response.result
 
   def update_bare_metal_attachment(self, bm_id, attach_id, updates) :
     response = self.service.update_bare_metal_server_network_attachment(bm_id, attach_id, updates)
