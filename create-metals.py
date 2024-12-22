@@ -11,6 +11,9 @@ vlan_network_attachment = lambda name, vni_id, vlan, allow_float : { 'name' : na
 
 vpclib = VPClib()
 
+# Collect inventory for PowerCLI
+ps_vars = "$hosts = @(\n"
+
 # Create RSA key
 try :
   rsa_priv = sshkey_tools.keys.RsaPrivateKey.from_string(inventory.rsa_private_key)
@@ -71,6 +74,7 @@ for host in ('host001', 'host002', 'host003') :
     print("%s_%s_%s_ip = '%s'" % (host, vmk_model['name'], vmk_model['purpose'], vni['ips'][0]['address']))
     if vmk_model['attach'] :
       additional_networks.append(vlan_network_attachment(vmk_model['name'], vni['id'], vmk_model['vlan'], vmk_model['float']))
+      vmk0_ip = vni['ips'][0]['address']
 
   # Add vCenter to first host
   if host == 'host001' :
@@ -96,14 +100,20 @@ for host in ('host001', 'host002', 'host003') :
   init = vpclib.get_bare_metal_initialization(bm['id'])
 
   if len(init['user_accounts']) == 0 :
+    password = 'unset'
     print("%s_password = 'unset'" % host)
   else :
     # Decrypt root password
-    password = rsa_priv.key.decrypt(base64.decodebytes(bytes(init['user_accounts'][0]['encrypted_password'], 'ascii')), padding.PKCS1v15())
-    print("%s_password = '%s'" % (host, password.decode('ascii')))
+    password = rsa_priv.key.decrypt(base64.decodebytes(bytes(init['user_accounts'][0]['encrypted_password'], 'ascii')), padding.PKCS1v15()).decode('ascii')
+    print("%s_password = '%s'" % (host, password))
+
+  ps_vars += "@{ name = '%s'; pci = '%s'; vlan = '%s'; password = '%s' }\n" % (host, vmnic0['ips'][0]['address'], vmk0_ip, password)
 
 # Note: the key object is attached to the bare metal for the life of the server and cannot be removed at this point
 
 # Post deployment, the ESXi vmk0 interfaces need to be re-IPed to the VLAN VNIs; as part of this the gateway IP and VLAN also need to be corrected.
 # The second vmnic will be used later to bootstrap the DVS; there is no need to add it to the vSwitch in this temporary unmanaged state.
+
+print("\nPowershell variables")
+print(ps_vars + ")")
 

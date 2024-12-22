@@ -12,17 +12,10 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, and `sshkey-tools`.
 - `vpc_lib.py` - contains a helper class for rudimentary idempotency; defaults to London
 - `create-vpc.py` - create a VPC and networks; after completion you should add the output to `inventory.py`
 - `create-bastion.py` - create a Windows bastion VSI with access restricted to known source IPs; after completion you should add the RSA private key to `inventory.py`
-- `create-metals.py` - create three bare metal ESXi servers; note that the ESXi image id is not published
-- `inventory.ps1` - inventory for PowerShell; minimally create the following variables:
-  - `$host1_pci` - vmnic0 IP (initial IP) for host1
-  - `$host1_vlan` - vmk0 IP (final IP) for host1
-  - `$host1_password` - password for host1
-  - `$host2_pci` - vmnic0 IP (initial IP) for host2
-  - `$host2_vlan` - vmk0 IP (final IP) for host2
-  - `$host2_password` - password for host2
-  - `$host3_pci` - vmnic0 IP (initial IP) for host3
-  - `$host3_vlan` - vmk0 IP (final IP) for host3
-  - `$host3_password` - password for host3
+- `create-metals.py` - create three bare metal ESXi servers; note that the ESXi image id is not published; variables from here should go in `inventory.py` and `inventory.ps1`
+- `inventory.ps1` - inventory for PowerShell
+- `collect-macs.ps1` - run this to inventory MAC addresses on hosts; add to `inventory.py`
+- `correct-pcis.py` - run this to adjust the PCI allowed VLANs according to the order in which they were attached to each host
 - `server-initialization.ps1` - basic initialization script for hosts; further configuration done in vCenter
 
 ## Interface and addressing scheme

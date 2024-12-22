@@ -21,7 +21,7 @@ class VPCiterator :
       if 'next' in self.result :
         parse = urllib.parse.urlparse(self.result['next']['href'])
         query = urllib.parse.parse_qs(parse.query)
-        self.result = self.f(start = query['start']).result
+        self.result = self.f(**query).result
       else :
         raise StopIteration
     nextitem = self.result[self.listname].pop(0)
@@ -134,6 +134,20 @@ class VPClib :
 
   def get_bare_metal_initialization(self, bm_id) :
     response = self.service.get_bare_metal_server_initialization(bm_id)
+    return response.result
+
+  def get_bare_metal_network_attachments(self, bm_id) :
+    def helper(**kwargs) :
+      return self.service.list_bare_metal_server_network_attachments(bm_id, **kwargs)
+    return VPCiterator(helper, 'network_attachments')
+
+  def get_bare_metal_network_interfaces(self, bm_id) :
+    def helper(**kwargs) :
+      return self.service.list_bare_metal_server_network_interfaces(bm_id, **kwargs)
+    return VPCiterator(helper, 'network_interfaces')
+
+  def update_bare_metal_attachment(self, bm_id, attach_id, updates) :
+    response = self.service.update_bare_metal_server_network_attachment(bm_id, attach_id, updates)
     return response.result
 
   def create_or_retrieve_floating_ip(self, vni_id, name) :
