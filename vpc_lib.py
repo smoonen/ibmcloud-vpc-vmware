@@ -6,26 +6,14 @@ from cryptography.hazmat.primitives.asymmetric import padding
 import inventory
 import urllib.parse
 
-class VPCiterator :
-  def __init__(self, f, listname) :
-    self.f = f
-    self.listname = listname
-    self.result = None
+def VPCiterator(f, listname) :
+  query = {}
 
-  def __iter__(self) :
-    self.result = self.f(limit = 5).result
-    return self
-
-  def __next__(self) :
-    if len(self.result[self.listname]) == 0 :
-      if 'next' in self.result :
-        parse = urllib.parse.urlparse(self.result['next']['href'])
-        query = urllib.parse.parse_qs(parse.query)
-        self.result = self.f(**query).result
-      else :
-        raise StopIteration
-    nextitem = self.result[self.listname].pop(0)
-    return nextitem
+  while True :
+    result = f(**query).result
+    for item in result[listname] : yield item
+    if 'next' not in result : break
+    query = urllib.parse.parse_qs(urllib.parse.urlparse(result['next']['href']).query)
 
 class VPClib :
   def __init__(self, region = 'eu-gb', api_key = inventory.api_key) :
