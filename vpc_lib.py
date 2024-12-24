@@ -160,3 +160,27 @@ class VPClib :
     response = self.service.create_floating_ip({ 'name' : name, 'target' : { 'id' : vni_id } })
     return response.result
 
+  def list_dnszones(self, dns_inst) :
+    def helper(**kwargs) :
+      return self.dnssvc.list_dnszones(dns_inst, **kwargs)
+    return VPCiterator(helper, 'dnszones')
+
+  def create_or_retrieve_zone(self, dns_inst, domain) :
+    for zone in self.list_dnszones(dns_inst) :
+      if zone['name'] == domain :
+        return zone
+    response = self.dnssvc.create_dnszone(dns_inst, name = domain)
+    return response.result
+
+  def list_zonerecords(self, zone) :
+    def helper(**kwargs) :
+      return self.dnssvc.list_resource_records(zone['instance_id'], zone['id'], **kwargs)
+    return VPCiterator(helper, 'resource_records')
+
+  def create_or_update_Arecord(self, zone, name, ip) :
+    for record in self.list_zonerecords(zone) :
+      if record['name'] == name :
+        response = self.dnssvc.update_resource_record(zone['instance_id'], zone['id'], record['id'], name = name, rdata = { 'ip' : ip })
+        return
+    response = self.dnssvc.create_resource_record(zone['instance_id'], zone['id'], type = 'A', ttl = 900, name = name, rdata = { 'ip' : ip })
+

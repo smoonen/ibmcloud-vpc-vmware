@@ -3,32 +3,42 @@
 I created this project to explore the IBM Cloud VPC SDK and also to experiment with how ESXi behaves in IBM Cloud VPC.
 
 ## Prerequisites
-Install packages `ibm-vpc`, `ibm-cloud-networking-services`, and `sshkey-tools`.
+Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshkey-tools`.
 
 ## Files
+
+### Helpers
+
 - `inventory.py` - you must create this file yourself; some notable initial variables are as follows:
   - `api_key` - IBM Cloud API key with sufficient permissions to manage VPC and DNS resources
   - `allowed_ips` - a list of allowed IPs for your bastion VSI
+- `inventory.ps1` - you must create this file as well; inventory for PowerShell
 - `vpc_lib.py` - contains a helper class for rudimentary idempotency; defaults to London
-- `create-vpc.py` - create a VPC and networks; after completion you should add the output to `inventory.py`
-- `create-bastion.py` - create a Windows bastion VSI with access restricted to known source IPs; after completion you should add the RSA private key to `inventory.py`
-- `create-metals.py` - create three bare metal ESXi servers; note that the ESXi image id is not published; variables from here should go in `inventory.py` and `inventory.ps1`
-- `inventory.ps1` - inventory for PowerShell
-- `collect-macs.ps1` - run this to inventory MAC addresses on hosts; add to `inventory.py`
-- `correct-pcis.py` - run this to adjust the PCI allowed VLANs according to the order in which they were attached to each host
-- `server-initialization.ps1` - basic initialization script for hosts; further configuration done in vCenter
+- `templates/vcsa-deploy.json` - Jinja2 template for VCSA install JSON
+- `start-ssh.ps1` - Helper script to start SSH and ESXi shell services on hosts
+
+### Scripts (in order)
+1. `create-vpc.py` - create a VPC and networks; after completion you should add the output to `inventory.py`
+2. `create-bastion.py` - create a Windows bastion VSI with access restricted to known source IPs; after completion you should add the RSA private key to `inventory.py`
+3. `create-metals.py` - create three bare metal ESXi servers; note that the ESXi image id is not published; variables from here should go in `inventory.py` and `inventory.ps1`
+4. `collect-macs.ps1` - run this to inventory MAC addresses on hosts; add to `inventory.py`
+5. `correct-pcis.py` - run this to adjust the PCI allowed VLANs according to the order in which they were attached to each host
+6. `manage-dns.py` - run this script to create or update DNS records for an existing DNS instance already attached to your VPC
+7. `server-initialization.ps1` - basic initialization script for hosts; further configuration done in vCenter
+8. `generate-vcenter-json.py` - generate JSON to deploy vcenter; set inventory variables `vcenter_root_password` and `vcenter_sso_password` before running
+9. `deploy-vcsa.ps1` - deploy VCSA appliance to host001
 
 ## Interface and addressing scheme
 
 I am creating five vmnics (PCI interfaces) on each host. My goal is to enable performance testing of multiple paths to the smartNIC:
 
-- Two for management (enabling straightforward conversion between standard and distributed switches)
+- One for management (given the smartNIC, two are not needed for redundancy; the only downside with one is that switch conversion involves a "dark side of the moon")
 - One for vMotion
 - One for vSAN
 - One for TEPs
 - One for uplinks
 
-For the latter vmnics, it is tempting to use the PCI IP address for the corresponding vmknic. However, PCI interfaces are coupled to the MAC address assigned by IBM Cloud, and it is difficult to customize the MAC address of a vmknic. Therefore, my addressing scheme assigns throwaway IP addresses to the PCI interfaces and will use VLAN interfaces for all vmknics. Since link-local addresses are reserved by IBM Cloud, I use the range 172.16.0.0/24. (If you are familiar with IBM Cloud classic networking, you may recall that throwaway IP addresses are used there for the public interfaces of hosts.)
+It is tempting to use the PCI IP address for the corresponding vmknic. However, PCI interfaces are coupled to the MAC address assigned by IBM Cloud, and it is difficult to customize the MAC address of a vmknic. Therefore, my addressing scheme assigns throwaway IP addresses to the PCI interfaces and will use VLAN interfaces for all vmknics. Since link-local addresses are reserved by IBM Cloud, I use the range 172.16.0.0/24. (If you are familiar with IBM Cloud classic networking, you may recall that throwaway IP addresses are used there for the public interfaces of hosts.)
 
 Here is my vmknic and virtual machine addressing scheme:
 
@@ -38,9 +48,12 @@ Here is my vmknic and virtual machine addressing scheme:
 - TEPs (also used for edges) - 192.168.5.0/24, VLAN 5
 - Uplinks (used exclusively for edges and not for vmknic) - 192.168.6.0/24, VLAN 6
 
-The vmknic ids are reversed because my simplistic way of moving the host's management IP results in recreating the management vmknic.
+The first two vmknic ids are reversed because of the migration of the host IPs from the PCI interface to a VLAN interface.
 
 Note that, other than vmnic0, ESXi does not necessarily perceive the physical interfaces in the same order that they were supplied at the time the bare metal server was created. Since it is difficult to customize the MAC address for a vmnic (in order to force the expected order), I take the approach instead of discovering the order after the host is provisioned. What this means is that I must customize the list of allowed VLANs on each PCI subsequent to creating the bare metal.
 
-Note also that the host management VLAN interface must be configured to allow floating. Movement between different PCI interfaces on a host is considered floating.
+## Post deployment considerations
+
+- Remember to customize the VLAN on your distributed port groups. You should customize the VLANs on your switch uplinks as well; otherwise switch health checks will fail.
+- Migrating host vmknics and vCenter to the distributed switch and port group at the same time generally fails. To workaround this, migrate one of the hosts where vCenter is not running, then migrate vCenter to that host, then migrate the remaining hosts.
 

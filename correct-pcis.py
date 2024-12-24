@@ -1,6 +1,6 @@
 from vpc_lib import VPClib
 import inventory
-import pprint, sys
+import sys
 
 vpclib = VPClib()
 
@@ -12,7 +12,7 @@ for host in ('host001', 'host002', 'host003') :
   interfaces = list(vpclib.get_bare_metal_network_interfaces(bm_id))
 
   # Correct allowed VLANs on PCIs
-  for vmnic in range(1, 6) :
+  for vmnic in range(1, 5) :
     mac = getattr(inventory, '%s_vmnic%d_mac' % (host, vmnic))
     for interface in interfaces :
       if interface['mac_address'].lower() == mac.lower() :

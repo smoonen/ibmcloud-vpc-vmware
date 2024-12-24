@@ -50,20 +50,19 @@ for host in ('host001', 'host002', 'host003') :
     vmnic0 = vpclib.get_vni(vmnic0['id'])
   print("%s_vmnic0_ip = '%s'" % (host, vmnic0['ips'][0]['address']))
 
-  # The remaining vmnics are used for management, vMotion, vSAN, TEPs, and uplinks.
+  # The remaining vmnics are used for vMotion, vSAN, TEPs, and uplinks.
   # However, the order in which they are consumed by ESXi is unpredictable.
-  # You should not expect that the PCI index (1-5) matches the vmnic index, and therefore we cannot set allowed VLANs yet.
+  # You should not expect that the PCI index (1-4) matches the vmnic index, and therefore we cannot set allowed VLANs yet.
   additional_networks = []
-  for x in range(1, 6) :
+  for x in range(1, 5) :
     vni = vpclib.create_or_retrieve_vni(inventory.host_subnet_id, "smoonen-vni-%s-pci%d" % (host, x), sg['id'])
     print("%s_pci%d_id = '%s'" % (host, x, vni['id']))
     additional_networks.append(pci_network_attachment('pci%d' % x, vni['id']))
 
   # Create the VNIs for VLAN / vmknic
-  # Note that there is a reversal between management and vMotion because of the crude way in which we are reconfiguring the host management IP.
-  # Note also that we are leaving TEP and uplink management for later.
+  # Note that we are leaving TEP and uplink management for later.
   # Because we aren't assigning most allowed VLANs at this time, we won't be able to attach the vMotion and vSAN VNIs. We will create them now but save attachment for later.
-  vmk_models = ( { 'name' : 'vmk1', 'purpose' : 'mgmt', 'vlan' : 2, 'float' : True, 'attach' : True },
+  vmk_models = ( { 'name' : 'vmk1', 'purpose' : 'mgmt', 'vlan' : 2, 'float' : False, 'attach' : True },
                  { 'name' : 'vmk0', 'purpose' : 'vmotion', 'attach' : False },
                  { 'name' : 'vmk2', 'purpose' : 'vsan', 'attach' : False } )
   for vmk_model in vmk_models :
@@ -74,7 +73,7 @@ for host in ('host001', 'host002', 'host003') :
     print("%s_%s_%s_ip = '%s'" % (host, vmk_model['name'], vmk_model['purpose'], vni['ips'][0]['address']))
     if vmk_model['attach'] :
       additional_networks.append(vlan_network_attachment(vmk_model['name'], vni['id'], vmk_model['vlan'], vmk_model['float']))
-      vmk0_ip = vni['ips'][0]['address']
+      vmk1_ip = vni['ips'][0]['address']
 
   # Add vCenter to first host
   if host == 'host001' :
@@ -107,7 +106,7 @@ for host in ('host001', 'host002', 'host003') :
     password = rsa_priv.key.decrypt(base64.decodebytes(bytes(init['user_accounts'][0]['encrypted_password'], 'ascii')), padding.PKCS1v15()).decode('ascii')
     print("%s_password = '%s'" % (host, password))
 
-  ps_vars += "@{ name = '%s'; pci = '%s'; vlan = '%s'; password = '%s' }\n" % (host, vmnic0['ips'][0]['address'], vmk0_ip, password)
+  ps_vars += "@{ name = '%s'; pci = '%s'; vlan = '%s'; password = '%s' }\n" % (host, vmnic0['ips'][0]['address'], vmk1_ip, password)
 
 # Note: the key object is attached to the bare metal for the life of the server and cannot be removed at this point
 
