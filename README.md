@@ -27,6 +27,7 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
 7. `server-initialization.ps1` - basic initialization script for hosts; further configuration done in vCenter
 8. `generate-vcenter-json.py` - generate JSON to deploy vcenter; set inventory variables `vcenter_root_password` and `vcenter_sso_password` before running
 9. `deploy-vcsa.ps1` - deploy VCSA appliance to host001
+10. `configure-cluster.ps1` - create and configure ESA cluster; set inventory variable `$vcenter_sso_password` before running
 
 ## Interface and addressing scheme
 

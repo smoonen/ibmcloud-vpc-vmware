@@ -16,12 +16,12 @@ for host in ('host001', 'host002', 'host003') :
     mac = getattr(inventory, '%s_vmnic%d_mac' % (host, vmnic))
     for interface in interfaces :
       if interface['mac_address'].lower() == mac.lower() :
-        if (vmnic + 1) in interface['allowed_vlans'] :
-          print("%s vmnic%d matches host interface %s; VLAN %d already applied" % (host, vmnic, interface['name'], vmnic + 1))
+        if (vmnic + 2) in interface['allowed_vlans'] :
+          print("%s vmnic%d matches host interface %s; VLAN %d already applied" % (host, vmnic, interface['name'], vmnic + 2))
         else :
-          print("%s vmnic%d matches host interface %s; applying VLAN %d" % (host, vmnic, interface['name'], vmnic + 1))
+          print("%s vmnic%d matches host interface %s; applying VLAN %d" % (host, vmnic, interface['name'], vmnic + 2))
           patch = { 'allowed_vlans' : interface['allowed_vlans'] }
-          patch['allowed_vlans'].append(vmnic + 1)
+          patch['allowed_vlans'].append(vmnic + 2)
 
           # Attachment id and interface id are the same
           vpclib.update_bare_metal_attachment(bm_id, interface['id'], patch)

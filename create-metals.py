@@ -71,6 +71,8 @@ for host in ('host001', 'host002', 'host003') :
       time.sleep(1)
       vni = vpclib.get_vni(vni['id'])
     print("%s_%s_%s_ip = '%s'" % (host, vmk_model['name'], vmk_model['purpose'], vni['ips'][0]['address']))
+    if vmk_model['purpose'] == 'vmotion' : vmotion_ip = vni['ips'][0]['address']
+    if vmk_model['purpose'] == 'vsan' : vsan_ip = vni['ips'][0]['address']
     if vmk_model['attach'] :
       additional_networks.append(vlan_network_attachment(vmk_model['name'], vni['id'], vmk_model['vlan'], vmk_model['float']))
       vmk1_ip = vni['ips'][0]['address']
@@ -106,7 +108,7 @@ for host in ('host001', 'host002', 'host003') :
     password = rsa_priv.key.decrypt(base64.decodebytes(bytes(init['user_accounts'][0]['encrypted_password'], 'ascii')), padding.PKCS1v15()).decode('ascii')
     print("%s_password = '%s'" % (host, password))
 
-  ps_vars += "@{ name = '%s'; pci = '%s'; vlan = '%s'; password = '%s' }\n" % (host, vmnic0['ips'][0]['address'], vmk1_ip, password)
+  ps_vars += "@{ name = '%s'; pci = '%s'; vlan = '%s'; vmotion = '%s'; vsan = '%s'; password = '%s' }\n" % (host, vmnic0['ips'][0]['address'], vmk1_ip, vmotion_ip, vsan_ip, password)
 
 # Note: the key object is attached to the bare metal for the life of the server and cannot be removed at this point
 
