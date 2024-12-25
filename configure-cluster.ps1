@@ -47,10 +47,10 @@ foreach($esxi in $hosts) {
   $vmhost = Get-VMHost -Name ($esxi.name + ".example.com")
   foreach($stack in Get-VMHostNetworkStack -VMHost $vmhost) {
     if($stack.ID -eq "vmotion") {
-      New-VMHostNetworkAdapter -VMHost $vmhost -VirtualSwitch $vmotion_switch -NetworkStack $stack -PortGroup $vmotion_portgroup -IP $esxi.vmotion -SubnetMask "255.255.255.0"
+      New-VMHostNetworkAdapter -VMHost $vmhost -VirtualSwitch $vmotion_switch -NetworkStack $stack -PortGroup $vmotion_portgroup -IP $esxi.vmotion -SubnetMask "255.255.255.0" -Mtu 9000
     }
   }
-  New-VMHostNetworkAdapter -VMHost $vmhost -VirtualSwitch $vsan_switch -PortGroup $vsan_portgroup -IP $esxi.vsan -SubnetMask "255.255.255.0" -ConsoleNic:$false -ManagementTrafficEnabled:$false -VmotionEnabled:$false -VsanTrafficEnabled:$true
+  New-VMHostNetworkAdapter -VMHost $vmhost -VirtualSwitch $vsan_switch -PortGroup $vsan_portgroup -IP $esxi.vsan -SubnetMask "255.255.255.0" -ConsoleNic:$false -ManagementTrafficEnabled:$false -VmotionEnabled:$false -VsanTrafficEnabled:$true -Mtu 9000
 
   $vmnic1 = Get-VMHostNetworkAdapter -VMHost $vmhost -Name vmnic1
   Add-VDSwitchPhysicalNetworkAdapter -DistributedSwitch $vmotion_switch -VMHostPhysicalNIC $vmnic1
@@ -94,4 +94,12 @@ foreach($esxi in Get-VMHost) {
 $vsan_ds = Get-Datastore -RelatedObject $cluster -Name vsanDatastore
 $policy = Get-SpbmStoragePolicy -Name "vSAN ESA Default Policy - RAID5"
 Move-VM -VM $vcenter -Datastore $vsan_ds -StoragePolicy $policy -VMotionPriority High
+
+# Mark vSAN Quickstart as complete
+$cluster.ExtensionData.AbandonHciWorkflow()
+
+# Enable switch health checks
+foreach($dvs in Get-View -ViewType DistributedVirtualSwitch) {
+  $dvs.UpdateDVSHealthCheckConfig(@((New-Object Vmware.Vim.VMwareDVSVlanMtuHealthCheckConfig -property @{enable=1}),(New-Object Vmware.Vim.VMwareDVSTeamingHealthCheckConfig -property @{enable=1})))
+}
 
