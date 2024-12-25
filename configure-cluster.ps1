@@ -98,8 +98,3 @@ Move-VM -VM $vcenter -Datastore $vsan_ds -StoragePolicy $policy -VMotionPriority
 # Mark vSAN Quickstart as complete
 $cluster.ExtensionData.AbandonHciWorkflow()
 
-# Enable switch health checks
-foreach($dvs in Get-View -ViewType DistributedVirtualSwitch) {
-  $dvs.UpdateDVSHealthCheckConfig(@((New-Object Vmware.Vim.VMwareDVSVlanMtuHealthCheckConfig -property @{enable=1}),(New-Object Vmware.Vim.VMwareDVSTeamingHealthCheckConfig -property @{enable=1})))
-}
-
