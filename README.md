@@ -53,8 +53,3 @@ The first two vmknic ids are reversed because of the migration of the host IPs f
 
 Note that, other than vmnic0, ESXi does not necessarily perceive the physical interfaces in the same order that they were supplied at the time the bare metal server was created. Since it is difficult to customize the MAC address for a vmnic (in order to force the expected order), I take the approach instead of discovering the order after the host is provisioned. What this means is that I must customize the list of allowed VLANs on each PCI subsequent to creating the bare metal.
 
-## Post deployment considerations
-
-- Remember to customize the VLAN on your distributed port groups. You should customize the VLANs on your switch uplinks as well; otherwise switch health checks will fail.
-- Migrating host vmknics and vCenter to the distributed switch and port group at the same time generally fails. To workaround this, migrate one of the hosts where vCenter is not running, then migrate vCenter to that host, then migrate the remaining hosts.
-
