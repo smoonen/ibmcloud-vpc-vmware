@@ -14,7 +14,7 @@ foreach($folder in Get-Folder) {
 $dc = New-Datacenter -Location $dc_folder -Name ibmcloud
 
 # Create cluster and add hosts
-$cluster = New-Cluster -Location $dc -Name london -DrsEnabled -DrsAutomationLevel PartiallyAutomated -HAAdmissionControlEnabled -HAEnabled -HAFailoverLevel 1 -VsanEnabled -VsanEsaEnabled
+$cluster = New-Cluster -Location $dc -Name london -DrsEnabled -DrsAutomationLevel FullyAutomated -HAAdmissionControlEnabled -HAEnabled -HAFailoverLevel 1 -VsanEnabled -VsanEsaEnabled
 foreach($esxi in $hosts) {
   Add-VMHost -Location $cluster -Name ($esxi.name + ".example.com") -User root -Password $esxi.password -Force
 }
