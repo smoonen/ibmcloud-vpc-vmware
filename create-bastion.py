@@ -66,7 +66,7 @@ init = vpclib.get_instance_initialization(vsi['id'])
 if 'password' in init :
   password = rsa_priv.key.decrypt(base64.decodebytes(bytes(init['password']['encrypted_password'], 'ascii')), padding.PKCS1v15())
 else :
-  password = 'unset'
+  password = b'unset'
 print("password = '%s'" % password.decode('ascii'))
 
 # Note: the key object is attached to the VSI for the life of the VSI and cannot be removed at this point
