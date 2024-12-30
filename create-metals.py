@@ -37,6 +37,17 @@ while vcenter['ips'][0]['address'] == '0.0.0.0' :
   vcenter = vpclib.get_vni(vcenter['id'])
 print("vcenter_ip = '%s'" % vcenter['ips'][0]['address'])
 
+# Create NSX VNIs (one for VIP, three for controllers)
+nsx_vnis = []
+nsx_ips = []
+for suffix in ('', '0', '1', '2') :
+  vni = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, "smoonen-vni-nsx" + suffix, sg['id'])
+  while vni['ips'][0]['address'] == '0.0.0.0' :
+    time.sleep(1)
+    vni = vpclib.get_vni(vni['id'])
+  print("nsx%s_ip = '%s'" % (suffix, vni['ips'][0]['address']))
+  nsx_ips.append({ 'name' : "nsx" + suffix, 'ip' : vni['ips'][0]['address'], 'vni' : vni })
+
 # Create three hosts
 for host in ('host001', 'host002', 'host003') :
   # Create the VNIs for PCI / vmnic
@@ -77,9 +88,11 @@ for host in ('host001', 'host002', 'host003') :
       additional_networks.append(vlan_network_attachment(vmk_model['name'], vni['id'], vmk_model['vlan'], vmk_model['float']))
       vmk1_ip = vni['ips'][0]['address']
 
-  # Add vCenter to first host
+  # Add vCenter and NSX to first host
   if host == 'host001' :
     additional_networks.append(vlan_network_attachment('vcenter', vcenter['id'], 2, True))
+    for nsx in nsx_ips :
+      additional_networks.append(vlan_network_attachment(nsx['name'], nsx['vni']['id'], 2, True))
 
   # Create bare metal
   bm_model = {
@@ -117,4 +130,8 @@ for host in ('host001', 'host002', 'host003') :
 
 print("\nPowershell variables")
 print(ps_vars + ")")
+print("$nsx = @(")
+for x in nsx_ips :
+  print("@{ name = '%s'; ip = '%s' }" % (x['name'], x['ip']))
+print(")")
 
