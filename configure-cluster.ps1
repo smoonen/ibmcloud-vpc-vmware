@@ -51,6 +51,7 @@ foreach($esxi in $hosts) {
     }
   }
   New-VMHostNetworkAdapter -VMHost $vmhost -VirtualSwitch $vsan_switch -PortGroup $vsan_portgroup -IP $esxi.vsan -SubnetMask "255.255.255.0" -ConsoleNic:$false -ManagementTrafficEnabled:$false -VmotionEnabled:$false -VsanTrafficEnabled:$true -Mtu 9000
+  Get-VMHostNetwork -VMHost $vmhost | Set-VMHostNetwork -VMKernelGatewayDevice vmk2 -VMKernelGateway "192.168.4.1"
 
   $vmnic1 = Get-VMHostNetworkAdapter -VMHost $vmhost -Name vmnic1
   Add-VDSwitchPhysicalNetworkAdapter -DistributedSwitch $vmotion_switch -VMHostPhysicalNIC $vmnic1
