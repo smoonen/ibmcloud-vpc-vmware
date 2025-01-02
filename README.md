@@ -27,7 +27,7 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
 7. [server-initialization.ps1](server-initialization.ps1) - basic initialization script for hosts; further configuration done in vCenter
 8. [generate-vcenter-json.py](generate-vcenter-json.py) - generate JSON to deploy vcenter; set inventory variables `vcenter_root_password` and `vcenter_sso_password` before running
 9. [deploy-vcsa.ps1](deploy-vcsa.ps1) - deploy VCSA appliance to host001
-10. [configure-cluster.ps1](configure-cluster.ps1) - create and configure ESA cluster; set inventory variable `$vcenter_sso_password` before running
+10. [configure-cluster.ps1](configure-cluster.ps1) - create and configure ESA cluster; set inventory variable `$vcenter_sso_password` before running; if variables `$vcfkey` and `$vsankey` are set, these are applied to the cluster
 11. [deploy-nsx.ps1](deploy-nsx.ps1) - deploy and configure NSX cluster; before running set inventory variables `$nsx_password`, `$nsx_cli_passwd`, and `$nsx_cli_audit_password`
 
 ## Interface and addressing scheme

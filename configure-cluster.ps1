@@ -3,7 +3,7 @@ Set-PowerCliConfiguration -InvalidCertificateAction Prompt
 # Source inventory data
 . .\inventory.ps1
 
-Connect-VIServer -Server vcenter.example.com -User administrator@vsphere.local -Password $vcenter_sso_password
+$vc = Connect-VIServer -Server vcenter.example.com -User administrator@vsphere.local -Password $vcenter_sso_password
 
 # Create datacenter
 foreach($folder in Get-Folder) {
@@ -98,4 +98,15 @@ Move-VM -VM $vcenter -Datastore $vsan_ds -StoragePolicy $policy -VMotionPriority
 
 # Mark vSAN Quickstart as complete
 $cluster.ExtensionData.AbandonHciWorkflow()
+
+# Apply VCF and vSAN keys if present
+if((Get-Variable -Name vcfkey -ErrorAction SilentlyContinue) -and (Get-Variable -Name vsankey -ErrorAction SilentlyContinue)) {
+  $mgr = Get-View $global:DefaultVIServer.ExtensionData.Content.LicenseManager
+  $assign_mgr = Get-View $mgr.LicenseAssignmentManager
+  $assign_mgr.UpdateAssignedLicense($vc.InstanceUuid, $vcfkey, $null)
+  foreach($esxi in Get-VMHost) {
+    $assign_mgr.UpdateAssignedLicense($esxi.ExtensionData.MoRef.Value, $vcfkey, $null)
+  }
+  $assign_mgr.UpdateAssignedLicense($cluster.ExtensionData.MoRef.Value, $vsankey, $null)
+}
 
