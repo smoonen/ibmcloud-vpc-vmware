@@ -48,6 +48,16 @@ for suffix in ('', '0', '1', '2') :
   print("nsx%s_ip = '%s'" % (suffix, vni['ips'][0]['address']))
   nsx_ips.append({ 'name' : "nsx" + suffix, 'ip' : vni['ips'][0]['address'], 'vni' : vni })
 
+# Create TEP VNIs (ten for now)
+nsx_tep_ips = []
+for suffix in range(10) :
+  vni = vpclib.create_or_retrieve_vni(inventory.tep_subnet_id, "smoonen-vni-nsxtep%d" % suffix, sg['id'])
+  while vni['ips'][0]['address'] == '0.0.0.0' :
+    time.sleep(1)
+    vni = vpclib.get_vni(vni['id'])
+  print("nsxtep%d = '%s'" % (suffix, vni['ips'][0]['address']))
+  nsx_tep_ips.append({ 'name' : "nsxtep%d" % suffix, 'ip' : vni['ips'][0]['address'], 'vni' : vni })
+
 # Create three hosts
 for host in ('host001', 'host002', 'host003') :
   # Create the VNIs for PCI / vmnic
@@ -89,6 +99,7 @@ for host in ('host001', 'host002', 'host003') :
       vmk1_ip = vni['ips'][0]['address']
 
   # Add vCenter and NSX to first host
+  # Note that we cannot attach TEP IPs right now because we don't know which interface will take on VLAN 5
   if host == 'host001' :
     additional_networks.append(vlan_network_attachment('vcenter', vcenter['id'], 2, True))
     for nsx in nsx_ips :
@@ -134,4 +145,5 @@ print("$nsx = @(")
 for x in nsx_ips :
   print("@{ name = '%s'; ip = '%s' }" % (x['name'], x['ip']))
 print(")")
+print("$nsx_tep_ips = @(" + ', '.join(map(lambda x : '"%s"' % x['ip'], nsx_tep_ips)) + ")")
 

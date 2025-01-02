@@ -24,6 +24,7 @@ $cred.password = $vcenter_sso_password
 $cred.thumbprint = Get-SSLThumbprint256('https://vcenter.example.com')
 $c.credential = $cred
 $c.create_service_account = $true
+$c.set_as_oidc_provider = $true
 $cm = $n.create($c)
 
 # Deploy additional nodes
