@@ -14,8 +14,11 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
   - `allowed_ips` - a list of allowed IPs for your bastion VSI
 - `inventory.ps1` - you must create this file as well; inventory for PowerShell
 - [vpc_lib.py](vpc_lib.py) - contains a helper class for rudimentary idempotency; defaults to London
-- [templates/vcsa-deploy.json](templates/vcsa-deploy.json) - Jinja2 template for VCSA install JSON
 - [start-ssh.ps1](start-ssh.ps1) - Helper script to start SSH and ESXi shell services on hosts
+- [terraform.tf](terraform.tf) - needed to install NSX provider
+- `templates/`
+  - [templates/vcsa-deploy.json](vcsa-deploy.json) - Jinja2 template for VCSA install JSON
+  - [templates/variables.tf](variables.tf) - will be used to generate Terraform variables
 
 ### Scripts (in order)
 1. [create-vpc.py](create-vpc.py) - create a VPC and networks; after completion you should add the output to `inventory.py`
@@ -29,6 +32,8 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
 9. [deploy-vcsa.ps1](deploy-vcsa.ps1) - deploy VCSA appliance to host001
 10. [configure-cluster.ps1](configure-cluster.ps1) - create and configure ESA cluster; set inventory variable `$vcenter_sso_password` before running; if variables `$vcfkey` and `$vsankey` are set, these are applied to the cluster
 11. [deploy-nsx.ps1](deploy-nsx.ps1) - deploy and configure NSX cluster; before running set inventory variables `$nsx_password`, `$nsx_cli_passwd`, and `$nsx_cli_audit_password`
+12. [generate-terraform.py](generate-terraform.py) - generate `variables.tf` file for Terraform; set inventory variable `nsx_password` before running
+13. [main.tf](main.tf) - apply Terraform plan to configure hosts, segment, and edges
 
 ## Interface and addressing scheme
 
