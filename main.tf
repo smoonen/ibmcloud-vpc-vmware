@@ -35,10 +35,6 @@ data "nsxt_policy_transport_zone" "vlan_transport_zone" {
   display_name = "nsx-vlan-transportzone"
 }
 
-data "nsxt_policy_uplink_host_switch_profile" "host_uplink_profile" {
-  display_name = "nsx-default-uplink-hostswitch-profile"
-}
-
 data "nsxt_compute_collection" "compute_cluster_collection" {
   display_name = "london"
 }
@@ -109,6 +105,21 @@ resource "nsxt_policy_ip_pool_static_subnet" "static_subnet1" {
 
 # Hosts / transport nodes
 
+resource "nsxt_policy_uplink_host_switch_profile" "esxi_uplink_profile" {
+  display_name = "esxi_uplink_profile"
+
+  transport_vlan = 5
+  overlay_encap  = "GENEVE"
+
+  teaming {
+    active {
+      uplink_name = "uplink1"
+      uplink_type = "PNIC"
+    }
+    policy = "LOADBALANCE_SRCID"
+  }
+}
+
 resource "nsxt_policy_host_transport_node_profile" "tnp" {
   display_name = "tnp"
   standard_host_switch {
@@ -123,10 +134,10 @@ resource "nsxt_policy_host_transport_node_profile" "tnp" {
     transport_zone_endpoint {
       transport_zone = data.nsxt_policy_transport_zone.vlan_transport_zone.path
     }
-    host_switch_profile = [data.nsxt_policy_uplink_host_switch_profile.host_uplink_profile.path]
+    host_switch_profile = [nsxt_policy_uplink_host_switch_profile.esxi_uplink_profile.path]
     is_migrate_pnics    = false
     uplink {
-      uplink_name     = "uplink-1"
+      uplink_name     = "uplink1"
       vds_uplink_name = "dvUplink1"
     }
   }
@@ -136,5 +147,11 @@ resource "nsxt_policy_host_transport_node_collection" "htnc1" {
   display_name                = "htnc1"
   compute_collection_id       = data.nsxt_compute_collection.compute_cluster_collection.id
   transport_node_profile_path = nsxt_policy_host_transport_node_profile.tnp.path
+}
+
+data "nsxt_policy_host_transport_node_collection_realization" "htnc1_realization" {
+  path      = nsxt_policy_host_transport_node_collection.htnc1.path
+  timeout   = 1200
+  delay     = 1
 }
 
