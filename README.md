@@ -13,22 +13,22 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
   - `api_key` - IBM Cloud API key with sufficient permissions to manage VPC and DNS resources
   - `allowed_ips` - a list of allowed IPs for your bastion VSI
 - `inventory.ps1` - you must create this file as well; inventory for PowerShell
-- `vpc_lib.py` - contains a helper class for rudimentary idempotency; defaults to London
-- `templates/vcsa-deploy.json` - Jinja2 template for VCSA install JSON
-- `start-ssh.ps1` - Helper script to start SSH and ESXi shell services on hosts
+- [vpc_lib.py](vpc_lib.py) - contains a helper class for rudimentary idempotency; defaults to London
+- [templates/vcsa-deploy.json](templates/vcsa-deploy.json) - Jinja2 template for VCSA install JSON
+- [start-ssh.ps1](start-ssh.ps1) - Helper script to start SSH and ESXi shell services on hosts
 
 ### Scripts (in order)
-1. `create-vpc.py` - create a VPC and networks; after completion you should add the output to `inventory.py`
-2. `create-bastion.py` - create a Windows bastion VSI with access restricted to known source IPs; after completion you should add the RSA private key to `inventory.py`
-3. `create-metals.py` - create three bare metal ESXi servers; note that the ESXi image id is not published; variables from here should go in `inventory.py` and `inventory.ps1`
-4. `collect-macs.ps1` - run this to inventory MAC addresses on hosts; add to `inventory.py`
-5. `correct-pcis.py` - run this to adjust the PCI allowed VLANs according to the order in which they were attached to each host
-6. `manage-dns.py` - run this script to create or update DNS records for an existing DNS instance already attached to your VPC
-7. `server-initialization.ps1` - basic initialization script for hosts; further configuration done in vCenter
-8. `generate-vcenter-json.py` - generate JSON to deploy vcenter; set inventory variables `vcenter_root_password` and `vcenter_sso_password` before running
-9. `deploy-vcsa.ps1` - deploy VCSA appliance to host001
-10. `configure-cluster.ps1` - create and configure ESA cluster; set inventory variable `$vcenter_sso_password` before running
-11. `deploy-nsx.ps1` - deploy and configure NSX cluster; before running set inventory variables `$nsx_password`, `$nsx_cli_passwd`, and `$nsx_cli_audit_password`
+1. [create-vpc.py](create-vpc.py) - create a VPC and networks; after completion you should add the output to `inventory.py`
+2. [create-bastion.py](create-bastion.py) - create a Windows bastion VSI with access restricted to known source IPs; after completion you should add the RSA private key to `inventory.py`
+3. [create-metals.py](create-metals.py) - create three bare metal ESXi servers; note that the ESXi image id is not published; variables from here should go in `inventory.py` and `inventory.ps1`
+4. [collect-macs.ps1](collect-macs.ps1) - run this to inventory MAC addresses on hosts; add to `inventory.py`
+5. [correct-pcis.py](correct-pcis.py) - run this to adjust the PCI allowed VLANs according to the order in which they were attached to each host
+6. [manage-dns.py](manage-dns.py) - run this script to create or update DNS records for an existing DNS instance already attached to your VPC
+7. [server-initialization.ps1](server-initialization.ps1) - basic initialization script for hosts; further configuration done in vCenter
+8. [generate-vcenter-json.py](generate-vcenter-json.py) - generate JSON to deploy vcenter; set inventory variables `vcenter_root_password` and `vcenter_sso_password` before running
+9. [deploy-vcsa.ps1](deploy-vcsa.ps1) - deploy VCSA appliance to host001
+10. [configure-cluster.ps1](configure-cluster.ps1) - create and configure ESA cluster; set inventory variable `$vcenter_sso_password` before running
+11. [deploy-nsx.ps1](deploy-nsx.ps1) - deploy and configure NSX cluster; before running set inventory variables `$nsx_password`, `$nsx_cli_passwd`, and `$nsx_cli_audit_password`
 
 ## Interface and addressing scheme
 
