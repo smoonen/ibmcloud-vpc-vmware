@@ -1,3 +1,5 @@
+# Inspired by https://github.com/vmware-nsx/dcinabox_terraform/
+
 provider "nsxt" {
   host                 = var.nsx["fqdn"]
   username             = var.nsx["username"]
