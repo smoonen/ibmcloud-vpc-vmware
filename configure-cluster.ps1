@@ -24,6 +24,7 @@ $mgmt_switch = New-VDSwitch -Location $dc -Name dswitch-mgmt -Mtu 1500 -NumUplin
 $vmotion_switch = New-VDSwitch -Location $dc -Name dswitch-vmotion -Mtu 9000 -NumUplinkPorts 1
 $vsan_switch = New-VDSwitch -Location $dc -Name dswitch-vsan -Mtu 9000 -NumUplinkPorts 1
 $tep_switch = New-VDSwitch -Location $dc -Name dswitch-tep -Mtu 9000 -NumUplinkPorts 1
+$uplink_switch = New-VDSwitch -Location $dc -Name dswitch-uplink -Mtu 1500 -NumUplinkPorts 1
 
 # Add hosts to switches
 $host_list = Get-VMHost
@@ -32,6 +33,7 @@ foreach($esxi in $host_list) {
   Add-VDSwitchVMHost -VDSwitch $vmotion_switch -VMHost $esxi
   Add-VDSwitchVMHost -VDSwitch $vsan_switch -VMHost $esxi
   Add-VDSwitchVMHost -VDSwitch $tep_switch -VMHost $esxi
+  Add-VDSwitchVMHost -VDSwitch $uplink_switch -VMHost $esxi
 }
 
 # Set allowed VLANs. Note that although this approach is deprecated; I have not been able to get Set-VDVlanConfiguration to work on uplinks
@@ -39,6 +41,7 @@ Get-VDPortGroup -VDSwitch $mgmt_switch | Set-VDPortGroup -VlanTrunkRange "2"
 Get-VDPortGroup -VDSwitch $vmotion_switch | Set-VDPortGroup -VlanTrunkRange "3"
 Get-VDPortGroup -VDSwitch $vsan_switch | Set-VDPortGroup -VlanTrunkRange "4"
 Get-VDPortGroup -VDSwitch $tep_switch | Set-VDPortGroup -VlanTrunkRange "5"
+Get-VDPortGroup -VDSwitch $uplink_switch | Set-VDPortGroup -VlanTrunkRange "6"
 
 # Create portgroups
 $mgmt_portgroup = New-VDPortGroup -VDSwitch $mgmt_switch -Name dpg-mgmt -VlanId 2
@@ -62,6 +65,8 @@ foreach($esxi in $hosts) {
   Add-VDSwitchPhysicalNetworkAdapter -DistributedSwitch $vsan_switch -VMHostPhysicalNIC $vmnic2 -Confirm:$false
   $vmnic3 = Get-VMHostNetworkAdapter -VMHost $vmhost -Name vmnic3
   Add-VDSwitchPhysicalNetworkAdapter -DistributedSwitch $tep_switch -VMHostPhysicalNIC $vmnic3 -Confirm:$false
+  $vmnic4 = Get-VMHostNetworkAdapter -VMHost $vmhost -Name vmnic4
+  Add-VDSwitchPhysicalNetworkAdapter -DistributedSwitch $uplink_switch -VMHostPhysicalNIC $vmnic4 -Confirm:$false
 }
 foreach($stack in Get-VMHostNetworkStack -Id vmotion) {
   Set-VMHostNetworkStack -NetworkStack $stack -VMKernelGateway "192.168.3.1"
