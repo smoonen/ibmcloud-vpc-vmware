@@ -103,6 +103,26 @@ resource "nsxt_policy_ip_pool_static_subnet" "static_subnet1" {
   }
 }
 
+# IP Pool for overlay segment
+
+resource "nsxt_policy_ip_pool" "pool2" {
+  display_name = "overlay-pool"
+  description  = "Overlay segment IPs"
+}
+
+resource "nsxt_policy_ip_pool_static_subnet" "static_subnet2" {
+  display_name = "overlay-pool-subnet"
+  pool_path    = nsxt_policy_ip_pool.pool2.path
+  cidr         = "10.1.1.0/24"
+  gateway      = "10.1.1.1"
+
+  allocation_range {
+    start = "10.1.1.2"
+    end   = "10.1.1.254"
+  }
+
+}
+
 # Hosts / transport nodes
 
 resource "nsxt_policy_uplink_host_switch_profile" "esxi_uplink_profile" {
@@ -153,5 +173,19 @@ data "nsxt_policy_host_transport_node_collection_realization" "htnc1_realization
   path      = nsxt_policy_host_transport_node_collection.htnc1.path
   timeout   = 1200
   delay     = 1
+}
+
+# Overlay segment
+
+resource "nsxt_policy_segment" "segment1" {
+  display_name        = "segment-10-1-1"
+  transport_zone_path = data.nsxt_policy_transport_zone.overlay_transport_zone.path
+  subnet {
+    cidr = "10.1.1.1/24"
+  }
+  advanced_config {
+    address_pool_path = nsxt_policy_ip_pool.pool2.path
+  }
+  depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
 }
 
