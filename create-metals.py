@@ -37,10 +37,10 @@ while vcenter['ips'][0]['address'] == '0.0.0.0' :
   vcenter = vpclib.get_vni(vcenter['id'])
 print("vcenter_ip = '%s'" % vcenter['ips'][0]['address'])
 
-# Create NSX VNIs (one for VIP, three for controllers)
+# Create NSX VNIs (one for VIP, three for controllers, two for edge mgmt)
 nsx_vnis = []
 nsx_ips = []
-for suffix in ('', '0', '1', '2') :
+for suffix in ('', '0', '1', '2', 'edge0', 'edge1') :
   vni = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, "smoonen-vni-nsx" + suffix, sg['id'])
   while vni['ips'][0]['address'] == '0.0.0.0' :
     time.sleep(1)
