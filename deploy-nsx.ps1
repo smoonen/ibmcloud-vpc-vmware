@@ -18,6 +18,7 @@ $c = $n.Help.create.compute_manager.Create()
 $c.multi_nsx = $false
 $c.origin_type = "vCenter"
 $c.server = "vcenter.example.com"
+$c.display_name = "vcenter.example.com"
 $cred = $n.Help.create.compute_manager.credential.username_password_login_credential.Create()
 $cred.username = "administrator@vsphere.local"
 $cred.password = $vcenter_sso_password
