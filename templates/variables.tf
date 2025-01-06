@@ -10,9 +10,14 @@ variable "vcenter" {
 variable "nsx" {
   type = map(string)
   default = {
-    fqdn     = "nsx.example.com"
-    username = "admin"
-    password = "{{ inventory.nsx_password }}"
+    fqdn           = "nsx.example.com"
+    username       = "admin"
+    password       = "{{ inventory.nsx_password }}"
+    cli_password   = "{{ inventory.nsx_cli_password }}"
+    audit_password = "{{ inventory.nsx_cli_audit_password }}"
+    edgeuplink_0   = "{{ inventory.edgeuplink_0 }}"
+    edgeuplink_1   = "{{ inventory.edgeuplink_1 }}"
+    edgeuplink_vip = "{{ inventory.edgeuplink_vip }}"
   }
 }
 

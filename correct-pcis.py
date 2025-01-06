@@ -26,11 +26,16 @@ for host in ('host001', 'host002', 'host003') :
           # Attachment id and interface id are the same
           vpclib.update_bare_metal_attachment(bm_id, interface['id'], patch)
 
-          # If this is the first host and VLAN 5, attach NSX TEP VNIs
-          if host == 'host001' and vmnic + 2 == 5 :
-            for tep in range(10) :
-              attachment = { 'name' : 'nsxtep%d' % tep, 'virtual_network_interface' : { 'id' : vpclib.get_vni_by_name("smoonen-vni-nsxtep%d" % tep)['id'] }, 'allow_to_float' : True, 'interface_type' : 'vlan', 'vlan' : 5 }
-              vpclib.create_or_retrieve_bare_metal_attachment(bm_id, attachment)
+          # If this is the first host, attach NSX TEP and edge uplink VNIs
+          if host == 'host001' :
+            if vmnic + 2 == 5 :
+              for tep in range(10) :
+                attachment = { 'name' : 'nsxtep%d' % tep, 'virtual_network_interface' : { 'id' : vpclib.get_vni_by_name("smoonen-vni-nsxtep%d" % tep)['id'] }, 'allow_to_float' : True, 'interface_type' : 'vlan', 'vlan' : 5 }
+                vpclib.create_or_retrieve_bare_metal_attachment(bm_id, attachment)
+            elif vmnic + 2 == 6 :
+              for uplink in ('edgeuplink-0', 'edgeuplink-1', 'edgeuplink-vip') :
+                attachment = { 'name' : uplink, 'virtual_network_interface' : { 'id' : vpclib.get_vni_by_name("smoonen-vni-%s" % uplink)['id'] }, 'allow_to_float' : True, 'interface_type' : 'vlan', 'vlan' : 6 }
+                vpclib.create_or_retrieve_bare_metal_attachment(bm_id, attachment)
 
   # Attach VLAN interfaces if needed
   vmk0 = vpclib.get_vni_by_name("smoonen-vni-%s-vmk0-vmotion" % host)

@@ -47,6 +47,8 @@ Get-VDPortGroup -VDSwitch $uplink_switch | Set-VDPortGroup -VlanTrunkRange "6"
 $mgmt_portgroup = New-VDPortGroup -VDSwitch $mgmt_switch -Name dpg-mgmt -VlanId 2
 $vmotion_portgroup = New-VDPortGroup -VDSwitch $vmotion_switch -Name dpg-vmotion -VlanId 3
 $vsan_portgroup = New-VDPortGroup -VDSwitch $vsan_switch -Name dpg-vsan -VlanId 4
+$tep_portgroup = New-VDPortGroup -VDSwitch $tep_switch -Name dpg-tep -VlanId 5
+$uplink_portgroup = New-VDPortGroup -VDSwitch $uplink_switch -Name dpg-uplink -VlanId 6
 
 # Create vSAN and vMotion interfaces before we configure management, since we have to migrate vCenter
 foreach($esxi in $hosts) {

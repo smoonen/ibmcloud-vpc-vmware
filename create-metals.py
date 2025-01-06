@@ -58,6 +58,16 @@ for suffix in range(10) :
   print("nsxtep%d = '%s'" % (suffix, vni['ips'][0]['address']))
   nsx_tep_ips.append({ 'name' : "nsxtep%d" % suffix, 'ip' : vni['ips'][0]['address'], 'vni' : vni })
 
+# Create uplink VNIs (two static, one VIP)
+uplink_ips = []
+for suffix in ("0", "1", "vip") :
+  vni = vpclib.create_or_retrieve_vni(inventory.uplink_subnet_id, "smoonen-vni-edgeuplink-%s" % suffix, sg['id'])
+  while vni['ips'][0]['address'] == '0.0.0.0' :
+    time.sleep(1)
+    vni = vpclib.get_vni(vni['id'])
+  print("edgeuplink_%s = '%s'" % (suffix, vni['ips'][0]['address']))
+  uplink_ips.append({ 'name' : "edgeuplink_%s" % suffix, 'ip' : vni['ips'][0]['address'], 'vni' : vni })
+
 # Create three hosts
 for host in ('host001', 'host002', 'host003') :
   # Create the VNIs for PCI / vmnic
