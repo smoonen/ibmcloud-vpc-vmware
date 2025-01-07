@@ -473,16 +473,3 @@ resource "nsxt_policy_segment" "segment3" {
   depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
 }
 
-# Static route to VPC underlay
-
-resource "nsxt_policy_static_route" "route1" {
-  display_name = "vpc-underlay-route"
-  gateway_path = nsxt_policy_tier0_gateway.nsx-t0.path
-  network      = "192.168.0.0/16"
-
-  next_hop {
-    admin_distance = "2"
-    ip_address     = "192.168.6.1"
-  }
-}
-
