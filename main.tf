@@ -132,26 +132,6 @@ resource "nsxt_policy_ip_pool_static_subnet" "static_subnet1" {
   }
 }
 
-# IP Pool for overlay segment
-
-resource "nsxt_policy_ip_pool" "pool2" {
-  display_name = "overlay-pool"
-  description  = "Overlay segment IPs"
-}
-
-resource "nsxt_policy_ip_pool_static_subnet" "static_subnet2" {
-  display_name = "overlay-pool-subnet"
-  pool_path    = nsxt_policy_ip_pool.pool2.path
-  cidr         = "10.1.1.0/24"
-  gateway      = "10.1.1.1"
-
-  allocation_range {
-    start = "10.1.1.2"
-    end   = "10.1.1.254"
-  }
-
-}
-
 # Hosts / transport nodes
 
 resource "nsxt_policy_uplink_host_switch_profile" "esxi_uplink_profile" {
@@ -204,33 +184,12 @@ data "nsxt_policy_host_transport_node_collection_realization" "htnc1_realization
   delay     = 1
 }
 
-# Overlay segment
-
-resource "nsxt_policy_segment" "segment1" {
-  display_name        = "segment-10-1-1"
-  transport_zone_path = data.nsxt_policy_transport_zone.overlay_transport_zone.path
-  subnet {
-    cidr = "10.1.1.1/24"
-  }
-  advanced_config {
-    address_pool_path = nsxt_policy_ip_pool.pool2.path
-  }
-  depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
-}
-
 # Edge nodes and cluster
 
-resource "nsxt_policy_transport_zone" "vlan_transport_zone_edge" {
-  display_name   = "VLAN-EDGE"
-  transport_type = "VLAN_BACKED"
-  uplink_teaming_policy_names = ["uplink_1_only" , "uplink_2_only"]
-}
-
-resource "nsxt_policy_uplink_host_switch_profile" "edge_tep_uplink_profile" {
-  display_name = "edge_tep_uplink_profile"
+resource "nsxt_policy_uplink_host_switch_profile" "edge_uplink_profile" {
+  display_name = "edge_uplink_profile"
 
   mtu            = 9000
-  transport_vlan = 5
   overlay_encap  = "GENEVE"
 
   teaming {
@@ -238,43 +197,15 @@ resource "nsxt_policy_uplink_host_switch_profile" "edge_tep_uplink_profile" {
       uplink_name = "uplink1"
       uplink_type = "PNIC"
     }
-    policy = "LOADBALANCE_SRCID"
-  }
-}
-
-resource "nsxt_policy_uplink_host_switch_profile" "edge_uplink_profile" {
-  display_name = "edge_uplink_profile"
-  mtu          = 9000
-  teaming {
-    active {
-      uplink_name = "uplink1"
-      uplink_type = "PNIC"
-    }
     policy = "FAILOVER_ORDER"
-  }
-
-  named_teaming {
-    active {
-      uplink_name = "uplink1"
-      uplink_type = "PNIC"
-    }
-    policy = "FAILOVER_ORDER"
-    name   = "uplink_1_only"
-  }
-
-  named_teaming {
-    active {
-      uplink_name = "uplink2"
-      uplink_type = "PNIC"
-    }
-    policy = "FAILOVER_ORDER"
-    name   = "uplink_2_only"
   }
 }
 
 resource "nsxt_edge_transport_node" "edge_node0" {
   description  = "Primary edge node"
   display_name = "edge-node-0"
+
+  # N-VDS for TEPs
   standard_host_switch {
     ip_assignment {
       static_ip_pool = nsxt_policy_ip_pool.pool1.realized_id
@@ -282,19 +213,30 @@ resource "nsxt_edge_transport_node" "edge_node0" {
     transport_zone_endpoint {
       transport_zone = data.nsxt_policy_transport_zone.overlay_transport_zone.id
     }
-    transport_zone_endpoint {
-      transport_zone = nsxt_policy_transport_zone.vlan_transport_zone_edge.realized_id
-    }
+    host_switch_name    = "tepSwitch"
     host_switch_profile = [nsxt_policy_uplink_host_switch_profile.edge_uplink_profile.realized_id]
     pnic {
       device_name = "fp-eth0"
       uplink_name = "uplink1"
     }
+  }
+
+  # N-VDS for uplinks; note that ip_assignment/DHCP are required but ignored since no overlay TZ
+  standard_host_switch {
+    ip_assignment {
+      assigned_by_dhcp = true
+    }
+    transport_zone_endpoint {
+      transport_zone = data.nsxt_policy_transport_zone.vlan_transport_zone.id
+    }
+    host_switch_name    = "uplinkSwitch"
+    host_switch_profile = [nsxt_policy_uplink_host_switch_profile.edge_uplink_profile.realized_id]
     pnic {
       device_name = "fp-eth1"
-      uplink_name = "uplink2"
+      uplink_name = "uplink1"
     }
   }
+
   deployment_config {
     form_factor = "XLARGE"
     node_user_settings {
@@ -328,6 +270,8 @@ resource "nsxt_edge_transport_node" "edge_node0" {
 resource "nsxt_edge_transport_node" "edge_node1" {
   description  = "Secondary edge node"
   display_name = "edge-node-1"
+
+  # N-VDS for TEPs
   standard_host_switch {
     ip_assignment {
       static_ip_pool = nsxt_policy_ip_pool.pool1.realized_id
@@ -335,19 +279,30 @@ resource "nsxt_edge_transport_node" "edge_node1" {
     transport_zone_endpoint {
       transport_zone = data.nsxt_policy_transport_zone.overlay_transport_zone.id
     }
-    transport_zone_endpoint {
-      transport_zone = nsxt_policy_transport_zone.vlan_transport_zone_edge.realized_id
-    }
+    host_switch_name    = "tepSwitch"
     host_switch_profile = [nsxt_policy_uplink_host_switch_profile.edge_uplink_profile.realized_id]
     pnic {
       device_name = "fp-eth0"
       uplink_name = "uplink1"
     }
+  }
+
+  # N-VDS for uplinks; note that ip_assignment/DHCP are required but ignored since no overlay TZ
+  standard_host_switch {
+    ip_assignment {
+      assigned_by_dhcp = true
+    }
+    transport_zone_endpoint {
+      transport_zone = data.nsxt_policy_transport_zone.vlan_transport_zone.id
+    }
+    host_switch_name    = "uplinkSwitch"
+    host_switch_profile = [nsxt_policy_uplink_host_switch_profile.edge_uplink_profile.realized_id]
     pnic {
       device_name = "fp-eth1"
-      uplink_name = "uplink2"
+      uplink_name = "uplink1"
     }
   }
+
   deployment_config {
     form_factor = "XLARGE"
     node_user_settings {
@@ -397,5 +352,124 @@ resource "nsxt_edge_cluster" "edgecluster1" {
     transport_node_id = nsxt_edge_transport_node.edge_node1.id
   }
   depends_on = [data.nsxt_transport_node_realization.edge_node0_realization, data.nsxt_transport_node_realization.edge_node1_realization]
+}
+
+data "nsxt_policy_edge_cluster" "edgecluster1" {
+  display_name = "edge-cluster-01"
+  depends_on   = [nsxt_edge_cluster.edgecluster1]
+}
+
+data "nsxt_policy_edge_node" "edgenode0" {
+  edge_cluster_path = data.nsxt_policy_edge_cluster.edgecluster1.path
+  display_name      = "edge-node-0"
+}
+
+data "nsxt_policy_edge_node" "edgenode1" {
+  edge_cluster_path = data.nsxt_policy_edge_cluster.edgecluster1.path
+  display_name      = "edge-node-1"
+}
+
+# T0 gateway and uplinks
+
+resource "nsxt_policy_tier0_gateway" "nsx-t0" {
+  display_name             = "smoonen-t0"
+  failover_mode            = "PREEMPTIVE"
+  default_rule_logging     = false
+  enable_firewall          = true
+  ha_mode                  = "ACTIVE_STANDBY"
+  edge_cluster_path        = data.nsxt_policy_edge_cluster.edgecluster1.path
+}
+
+resource "nsxt_policy_segment" "edge-uplink" {
+  display_name        = "edge-uplink"
+  transport_zone_path = data.nsxt_policy_transport_zone.vlan_transport_zone.path
+  vlan_ids            = [0]
+}
+
+resource "nsxt_policy_tier0_gateway_interface" "uplink_edge0" {
+  display_name   = "uplink-edge0"
+  type           = "EXTERNAL"
+  edge_node_path = data.nsxt_policy_edge_node.edgenode0.path
+  gateway_path   = nsxt_policy_tier0_gateway.nsx-t0.path
+  segment_path   = nsxt_policy_segment.edge-uplink.path
+  subnets        = [var.nsx.edgeuplink_0]
+  mtu            = 1500
+}
+
+resource "nsxt_policy_tier0_gateway_interface" "uplink_edge1" {
+  display_name   = "uplink-edge1"
+  type           = "EXTERNAL"
+  edge_node_path = data.nsxt_policy_edge_node.edgenode1.path
+  gateway_path   = nsxt_policy_tier0_gateway.nsx-t0.path
+  segment_path   = nsxt_policy_segment.edge-uplink.path
+  subnets        = [var.nsx.edgeuplink_1]
+  mtu            = 1500
+}
+
+resource "nsxt_policy_static_route" "default" {
+  display_name = "default_route"
+  gateway_path = nsxt_policy_tier0_gateway.nsx-t0.path
+  network      = "0.0.0.0/0"
+
+  next_hop {
+    ip_address = "192.168.6.1"
+  }
+}
+
+resource "nsxt_policy_tier0_gateway_ha_vip_config" "ha-vip" {
+  config {
+    enabled                  = true
+    external_interface_paths = [nsxt_policy_tier0_gateway_interface.uplink_edge0.path, nsxt_policy_tier0_gateway_interface.uplink_edge1.path]
+    vip_subnets              = [var.nsx.edgeuplink_vip]
+  }
+}
+
+# T1 router
+
+resource "nsxt_policy_tier1_gateway" "nsx-t1" {
+  display_name              = "smoonen-t1"
+  edge_cluster_path         = data.nsxt_policy_edge_cluster.edgecluster1.path
+  failover_mode             = "PREEMPTIVE"
+  default_rule_logging      = false
+  enable_firewall           = true
+  enable_standby_relocation = false
+  tier0_path                = nsxt_policy_tier0_gateway.nsx-t0.path
+  route_advertisement_types = ["TIER1_STATIC_ROUTES", "TIER1_CONNECTED"]
+  pool_allocation           = "ROUTING"
+  ha_mode                   = "ACTIVE_STANDBY"
+}
+
+# Overlay segments
+
+# This segment will hang off of the T0
+resource "nsxt_policy_segment" "segment1" {
+  display_name        = "segment-10-1-1"
+  transport_zone_path = data.nsxt_policy_transport_zone.overlay_transport_zone.path
+  connectivity_path = nsxt_policy_tier0_gateway.nsx-t0.path
+  subnet {
+    cidr = "10.1.1.1/24"
+  }
+  depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
+}
+
+# The remaining segments will hang off of the T1
+resource "nsxt_policy_segment" "segment2" {
+  display_name        = "segment-10-2-1"
+  transport_zone_path = data.nsxt_policy_transport_zone.overlay_transport_zone.path
+  connectivity_path = nsxt_policy_tier1_gateway.nsx-t1.path
+  subnet {
+    cidr = "10.2.1.1/24"
+  }
+  depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
+}
+
+resource "nsxt_policy_segment" "segment3" {
+  display_name        = "segment-10-2-2"
+  transport_zone_path = data.nsxt_policy_transport_zone.overlay_transport_zone.path
+  connectivity_path = nsxt_policy_tier1_gateway.nsx-t1.path
+  subnet {
+    cidr = "10.2.2.1/24"
+  }
+  depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
 }
 
