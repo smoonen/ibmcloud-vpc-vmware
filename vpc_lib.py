@@ -160,9 +160,23 @@ class VPClib :
     response = self.service.create_floating_ip({ 'name' : name, 'target' : { 'id' : vni_id } })
     return response.result
 
+  def list_routing_tables(self, vpc_id) :
+    def helper(**kwargs) :
+      return self.service.list_vpc_routing_tables(vpc_id, **kwargs)
+    return VPCiterator(helper, 'routing_tables')
+
+  def create_or_retrieve_route(self, vpc_id, table_id, name, destination, zone, next_hop) :
+    def helper(**kwargs) :
+      return self.service.list_vpc_routing_table_routes(vpc_id, table_id, **kwargs)
+    for route in VPCiterator(helper, 'routes') :
+      if route['name'] == name :
+        return route
+    response = self.service.create_vpc_routing_table_route(vpc_id, table_id, destination, zone, name = name, next_hop = { 'address' : next_hop })
+    return response.result
+
   def list_dnszones(self, dns_inst) :
     def helper(**kwargs) :
-      return self.dnssvc.list_dnszones(dns_inst, **kwargs)
+      return self.dnssvc.list_dnszone(dns_inst, **kwargs)
     return VPCiterator(helper, 'dnszones')
 
   def create_or_retrieve_zone(self, dns_inst, domain) :

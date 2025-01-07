@@ -146,6 +146,13 @@ for host in ('host001', 'host002', 'host003') :
 
 # Note: the key object is attached to the bare metal for the life of the server and cannot be removed at this point
 
+# Find the default routing table and create routes to the edge uplink VIP
+tables = list(vpclib.list_routing_tables(inventory.vpc_id))
+assert(len(tables) == 1)
+vpclib.create_or_retrieve_route(inventory.vpc_id, tables[0]['id'], 'route11', '10.1.1.0/24', zone1, uplink_ips[2]['ip'])
+vpclib.create_or_retrieve_route(inventory.vpc_id, tables[0]['id'], 'route21', '10.2.1.0/24', zone1, uplink_ips[2]['ip'])
+vpclib.create_or_retrieve_route(inventory.vpc_id, tables[0]['id'], 'route22', '10.2.2.0/24', zone1, uplink_ips[2]['ip'])
+
 # Post deployment, the ESXi vmk0 interfaces need to be re-IPed to the VLAN VNIs; as part of this the gateway IP and VLAN also need to be corrected.
 # The second vmnic will be used later to bootstrap the DVS; there is no need to add it to the vSwitch in this temporary unmanaged state.
 
