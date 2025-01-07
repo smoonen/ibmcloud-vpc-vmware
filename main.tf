@@ -473,3 +473,40 @@ resource "nsxt_policy_segment" "segment3" {
   depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
 }
 
+# SNAT and firewall for outbound traffic
+
+resource "nsxt_policy_nat_rule" "SNAT_ALL" {
+  display_name         = "Global SNAT"
+  description          = "SNAT all outbound traffic"
+  action               = "SNAT"
+  translated_networks  = [var.nsx["snat_ip"]]
+  gateway_path         = nsxt_policy_tier0_gateway.nsx-t0.path
+  logging              = false
+  firewall_match       = "MATCH_INTERNAL_ADDRESS"
+  rule_priority        = "1000"
+  scope                = [nsxt_policy_tier0_gateway_interface.uplink_edge0.path, nsxt_policy_tier0_gateway_interface.uplink_edge1.path]
+}
+
+resource "nsxt_policy_gateway_policy" "OutboundPolicy" {
+  display_name    = "OutboundPolicy"
+  category        = "LocalGatewayRules"
+  locked          = false
+  sequence_number = 200
+  stateful        = true
+  tcp_strict      = false
+
+  rule {
+    display_name       = "AllowOutboundAll"
+    direction          = "OUT"
+    disabled           = false
+    action             = "ALLOW"
+    logged             = false
+    sequence_number    = "100"
+    scope              = [nsxt_policy_tier0_gateway.nsx-t0.path]
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+

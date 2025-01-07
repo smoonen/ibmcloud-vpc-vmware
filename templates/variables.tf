@@ -20,6 +20,7 @@ variable "nsx" {
     edgeuplink_0   = "{{ inventory.edgeuplink_0 }}/24"
     edgeuplink_1   = "{{ inventory.edgeuplink_1 }}/24"
     edgeuplink_vip = "{{ inventory.edgeuplink_vip }}/24"
+    snat_ip        = "{{ inventory.edgeuplink_vip }}"
   }
 }
 
