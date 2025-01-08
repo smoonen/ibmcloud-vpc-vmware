@@ -32,7 +32,7 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
 9. [deploy-vcsa.ps1](deploy-vcsa.ps1) - deploy VCSA appliance to host001
 10. [configure-cluster.ps1](configure-cluster.ps1) - create and configure ESA cluster; set inventory variable `$vcenter_sso_password` before running; if variables `$vcfkey` and `$vsankey` are set, these are applied to the cluster
 11. [deploy-nsx.ps1](deploy-nsx.ps1) - deploy and configure NSX cluster; before running set inventory variables `$nsx_password`, `$nsx_cli_password`, and `$nsx_cli_audit_password`
-12. [generate-terraform.py](generate-terraform.py) - generate `variables.tf` file for Terraform; set inventory variables `nsx_password`, `nsx_cli_password`, and `nsx_cli_audit_password` before running
+12. [generate-terraform.py](generate-terraform.py) - generate `variables.tf` file for Terraform; set inventory variables `vdefend_key`, `nsx_password`, `nsx_cli_password`, and `nsx_cli_audit_password` before running
 13. [main.tf](main.tf) - apply Terraform plan to configure hosts, segment, and edges
 
 ## Interface and addressing scheme

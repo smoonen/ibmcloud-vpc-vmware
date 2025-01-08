@@ -6,6 +6,7 @@ provider "nsxt" {
   password             = var.nsx["password"]
   allow_unverified_ssl = true
   max_retries          = 2
+  license_keys         = [var.nsx["vdefend_key"]]
 }
 
 provider "vsphere" {

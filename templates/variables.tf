@@ -15,6 +15,7 @@ variable "nsx" {
     password       = "{{ inventory.nsx_password }}"
     cli_password   = "{{ inventory.nsx_cli_password }}"
     audit_password = "{{ inventory.nsx_cli_audit_password }}"
+    vdefend_key    = "{{ inventory.vdefend_key }}"
     edge0          = "{{ inventory.nsxedge0_ip }}"
     edge1          = "{{ inventory.nsxedge1_ip }}"
     edgeuplink_0   = "{{ inventory.edgeuplink_0 }}/24"
