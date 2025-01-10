@@ -9,11 +9,11 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
 
 ### Helpers
 
-- `inventory.py` - you must create this file yourself; some notable initial variables are as follows:
+- `inventory.py` - you must create this file yourself; you will add some variables as you go, but notable initial variables are as follows:
   - `api_key` - IBM Cloud API key with sufficient permissions to manage VPC and DNS resources
   - `allowed_ips` - a list of allowed IPs for your bastion VSI
   - `bastion_pubkey` - public RSA key from bastion server to use for login to VMware guests
-- `inventory.ps1` - you must create this file as well; inventory for PowerShell
+- `inventory.ps1` - you must create this file as well and populate it as you go; inventory for PowerShell
 - [vpc_lib.py](vpc_lib.py) - contains a helper class for rudimentary idempotency; defaults to London
 - [start-ssh.ps1](start-ssh.ps1) - Helper script to start SSH and ESXi shell services on hosts
 - [terraform.tf](terraform.tf) - needed to install NSX provider
@@ -37,7 +37,7 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
 13. [main.tf](main.tf) - apply Terraform plan to configure hosts, segment, and edges
 14. [vms.tf](vms.tf) and [ubuntu-userdata.yml](ubuntu-userdata.yml) - subsequent to edge configuration, deploy test VMs to each segment
 
-## Interface and addressing scheme
+## VPC interface and addressing scheme
 
 I am creating five vmnics (PCI interfaces) on each host. My goal is to enable performance testing of multiple paths to the smartNIC:
 
@@ -60,4 +60,15 @@ Here is my vmknic and virtual machine addressing scheme:
 The first two vmknic ids are reversed because of the migration of the host IPs from the PCI interface to a VLAN interface.
 
 Note that, other than vmnic0, ESXi does not necessarily perceive the physical interfaces in the same order that they were supplied at the time the bare metal server was created. Since it is difficult to customize the MAC address for a vmnic (in order to force the expected order), I take the approach instead of discovering the order after the host is provisioned. What this means is that I must customize the list of allowed VLANs on each PCI subsequent to creating the bare metal.
+
+## NSX overlay scheme
+
+The automation creates VPC routes to the NSX T0 VIP for the subnets in use on the overlay. The T0 itself has a default route back to the VPC. The network structure is as follows:
+
+- VPC: 192.168.0.0/16
+  - T0
+    - segment-10-1-1: 10.1.1.0/24, virtual machine `ubuntu11` is deployed here
+    - T1
+      - segment-10-2-1: 10.2.1.0/24, virtual machine `ubuntu21` is deployed here
+      - segment-10-2-2: 10.2.2.0/24, virtual machine `ubuntu22` is deployed here
 
