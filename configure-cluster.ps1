@@ -36,18 +36,17 @@ foreach($esxi in $host_list) {
   Add-VDSwitchVMHost -VDSwitch $uplink_switch -VMHost $esxi
 }
 
-# Set allowed VLANs. Note that although this approach is deprecated; I have not been able to get Set-VDVlanConfiguration to work on uplinks
+# Set allowed VLANs. Note that although this approach is deprecated; I have not been able to get Set-VDVlanConfiguration to work on uplinks.
 Get-VDPortGroup -VDSwitch $mgmt_switch | Set-VDPortGroup -VlanTrunkRange "2"
 Get-VDPortGroup -VDSwitch $vmotion_switch | Set-VDPortGroup -VlanTrunkRange "3"
 Get-VDPortGroup -VDSwitch $vsan_switch | Set-VDPortGroup -VlanTrunkRange "4"
 Get-VDPortGroup -VDSwitch $tep_switch | Set-VDPortGroup -VlanTrunkRange "5"
 Get-VDPortGroup -VDSwitch $uplink_switch | Set-VDPortGroup -VlanTrunkRange "6"
 
-# Create portgroups
+# Create portgroups. Note that we do not create a TEP portgroup; the edge TEPs will use a VLAN-backed segment instead.
 $mgmt_portgroup = New-VDPortGroup -VDSwitch $mgmt_switch -Name dpg-mgmt -VlanId 2
 $vmotion_portgroup = New-VDPortGroup -VDSwitch $vmotion_switch -Name dpg-vmotion -VlanId 3
 $vsan_portgroup = New-VDPortGroup -VDSwitch $vsan_switch -Name dpg-vsan -VlanId 4
-$tep_portgroup = New-VDPortGroup -VDSwitch $tep_switch -Name dpg-tep -VlanId 5
 $uplink_portgroup = New-VDPortGroup -VDSwitch $uplink_switch -Name dpg-uplink -VlanId 6
 
 # Create vSAN and vMotion interfaces before we configure management, since we have to migrate vCenter

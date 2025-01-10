@@ -12,6 +12,7 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
 - `inventory.py` - you must create this file yourself; some notable initial variables are as follows:
   - `api_key` - IBM Cloud API key with sufficient permissions to manage VPC and DNS resources
   - `allowed_ips` - a list of allowed IPs for your bastion VSI
+  - `bastion_pubkey` - public RSA key from bastion server to use for login to VMware guests
 - `inventory.ps1` - you must create this file as well; inventory for PowerShell
 - [vpc_lib.py](vpc_lib.py) - contains a helper class for rudimentary idempotency; defaults to London
 - [start-ssh.ps1](start-ssh.ps1) - Helper script to start SSH and ESXi shell services on hosts
@@ -34,6 +35,7 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
 11. [deploy-nsx.ps1](deploy-nsx.ps1) - deploy and configure NSX cluster; before running set inventory variables `$nsx_password`, `$nsx_cli_password`, and `$nsx_cli_audit_password`
 12. [generate-terraform.py](generate-terraform.py) - generate `variables.tf` file for Terraform; set inventory variables `vdefend_key`, `nsx_password`, `nsx_cli_password`, and `nsx_cli_audit_password` before running
 13. [main.tf](main.tf) - apply Terraform plan to configure hosts, segment, and edges
+14. [vms.tf](vms.tf) and [ubuntu-userdata.yml](ubuntu-userdata.yml) - subsequent to edge configuration, deploy test VMs to each segment
 
 ## Interface and addressing scheme
 

@@ -25,6 +25,7 @@ print("key_id = '%s'" % key['id'])
 
 # Create intra-VPC security group
 sg_rules = [ { 'direction' : 'inbound', 'ip_version' : 'ipv4', 'protocol' : 'all', 'remote' : { 'cidr_block' : '192.168.0.0/16' } },
+             { 'direction' : 'inbound', 'ip_version' : 'ipv4', 'protocol' : 'all', 'remote' : { 'cidr_block' : '10.0.0.0/8' } },
              { 'direction' : 'outbound', 'ip_version' : 'ipv4', 'protocol' : 'all' } ]
 sg = vpclib.create_or_retrieve_security_group(inventory.vpc_id, sg_rules, 'smoonen-sg-intravpc')
 print("sg_id = '%s'" % sg['id'])

@@ -43,11 +43,6 @@ data "vsphere_network" "dpg_mgmt" {
   datacenter_id = data.vsphere_datacenter.datacenter.id
 }
 
-data "vsphere_network" "dpg_tep" {
-  name          = "dpg-tep"
-  datacenter_id = data.vsphere_datacenter.datacenter.id
-}
-
 data "vsphere_network" "dpg_uplink" {
   name          = "dpg-uplink"
   datacenter_id = data.vsphere_datacenter.datacenter.id
@@ -185,7 +180,19 @@ data "nsxt_policy_host_transport_node_collection_realization" "htnc1_realization
   delay     = 1
 }
 
+# Edges whose TEPs live in the same subnet as the hosts must be placed on a VLAN segment rather than a port group
+resource "nsxt_policy_vlan_segment" "segment-edge-tep" {
+  display_name        = "segment-edge-tep"
+  transport_zone_path = data.nsxt_policy_transport_zone.vlan_transport_zone.path
+  vlan_ids            = [5]
+}
+
 # Edge nodes and cluster
+
+resource "nsxt_policy_transport_zone" "vlan_transport_zone_edge" {
+  display_name   = "nsx-vlan-transportzone-edge"
+  transport_type = "VLAN_BACKED"
+}
 
 resource "nsxt_policy_uplink_host_switch_profile" "edge_uplink_profile" {
   display_name = "edge_uplink_profile"
@@ -228,7 +235,7 @@ resource "nsxt_edge_transport_node" "edge_node0" {
       assigned_by_dhcp = true
     }
     transport_zone_endpoint {
-      transport_zone = data.nsxt_policy_transport_zone.vlan_transport_zone.id
+      transport_zone = nsxt_policy_transport_zone.vlan_transport_zone_edge.realized_id
     }
     host_switch_name    = "uplinkSwitch"
     host_switch_profile = [nsxt_policy_uplink_host_switch_profile.edge_uplink_profile.realized_id]
@@ -248,7 +255,7 @@ resource "nsxt_edge_transport_node" "edge_node0" {
     }
     vm_deployment_config {
       management_network_id = data.vsphere_network.dpg_mgmt.id
-      data_network_ids      = [data.vsphere_network.dpg_tep.id, data.vsphere_network.dpg_uplink.id]
+      data_network_ids      = [nsxt_policy_vlan_segment.segment-edge-tep.path, data.vsphere_network.dpg_uplink.id]
       compute_id            = data.vsphere_compute_cluster.compute_cluster.id
       storage_id            = data.vsphere_datastore.datastore.id
       vc_id                 = data.nsxt_compute_manager.vcenter.id
@@ -294,7 +301,7 @@ resource "nsxt_edge_transport_node" "edge_node1" {
       assigned_by_dhcp = true
     }
     transport_zone_endpoint {
-      transport_zone = data.nsxt_policy_transport_zone.vlan_transport_zone.id
+      transport_zone = nsxt_policy_transport_zone.vlan_transport_zone_edge.realized_id
     }
     host_switch_name    = "uplinkSwitch"
     host_switch_profile = [nsxt_policy_uplink_host_switch_profile.edge_uplink_profile.realized_id]
@@ -314,7 +321,7 @@ resource "nsxt_edge_transport_node" "edge_node1" {
     }
     vm_deployment_config {
       management_network_id = data.vsphere_network.dpg_mgmt.id
-      data_network_ids      = [data.vsphere_network.dpg_tep.id, data.vsphere_network.dpg_uplink.id]
+      data_network_ids      = [nsxt_policy_vlan_segment.segment-edge-tep.path, data.vsphere_network.dpg_uplink.id]
       compute_id            = data.vsphere_compute_cluster.compute_cluster.id
       storage_id            = data.vsphere_datastore.datastore.id
       vc_id                 = data.nsxt_compute_manager.vcenter.id
@@ -383,7 +390,7 @@ resource "nsxt_policy_tier0_gateway" "nsx-t0" {
 
 resource "nsxt_policy_segment" "edge-uplink" {
   display_name        = "edge-uplink"
-  transport_zone_path = data.nsxt_policy_transport_zone.vlan_transport_zone.path
+  transport_zone_path = nsxt_policy_transport_zone.vlan_transport_zone_edge.path
   vlan_ids            = [0]
 }
 
@@ -474,19 +481,7 @@ resource "nsxt_policy_segment" "segment3" {
   depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
 }
 
-# SNAT and firewall for outbound traffic
-
-resource "nsxt_policy_nat_rule" "SNAT_ALL" {
-  display_name         = "Global SNAT"
-  description          = "SNAT all outbound traffic"
-  action               = "SNAT"
-  translated_networks  = [var.nsx["snat_ip"]]
-  gateway_path         = nsxt_policy_tier0_gateway.nsx-t0.path
-  logging              = false
-  firewall_match       = "MATCH_INTERNAL_ADDRESS"
-  rule_priority        = "1000"
-  scope                = [nsxt_policy_tier0_gateway_interface.uplink_edge0.path, nsxt_policy_tier0_gateway_interface.uplink_edge1.path]
-}
+# T0 gateway firewall rules; allow outbound, filter inbound
 
 resource "nsxt_policy_gateway_policy" "OutboundPolicy" {
   display_name    = "OutboundPolicy"
@@ -503,6 +498,50 @@ resource "nsxt_policy_gateway_policy" "OutboundPolicy" {
     action             = "ALLOW"
     logged             = false
     sequence_number    = "100"
+    scope              = [nsxt_policy_tier0_gateway.nsx-t0.path]
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "nsxt_policy_group" "vpc-private" {
+  display_name = "vpc-private"
+
+  criteria {
+    ipaddress_expression {
+      ip_addresses = ["192.168.0.0/16"]
+    }
+  }
+}
+
+resource "nsxt_policy_gateway_policy" "InboundPolicy" {
+  display_name    = "InboundPolicy"
+  category        = "LocalGatewayRules"
+  locked          = false
+  sequence_number = 100
+  stateful        = true
+  tcp_strict      = false
+
+  rule {
+    display_name    = "AllowInboundPrivate"
+    source_groups   = [nsxt_policy_group.vpc-private.path]
+    direction       = "IN"
+    disabled        = false
+    action          = "ALLOW"
+    logged          = false
+    sequence_number = "100"
+    scope           = [nsxt_policy_tier0_gateway.nsx-t0.path]
+  }
+
+  rule {
+    display_name       = "DenyInboundAll"
+    direction          = "IN"
+    disabled           = false
+    action             = "DROP"
+    logged             = true
+    sequence_number    = "1000"
     scope              = [nsxt_policy_tier0_gateway.nsx-t0.path]
   }
 

@@ -1,0 +1,13 @@
+#!/bin/bash
+echo "network:" > /etc/netplan/99-network.yaml
+echo "  version: 2" >> /etc/netplan/99-network.yaml
+echo "  ethernets:" >> /etc/netplan/99-network.yaml
+echo "    ens192:" >> /etc/netplan/99-network.yaml
+echo "      dhcp4: false" >> /etc/netplan/99-network.yaml
+echo "      addresses:" >> /etc/netplan/99-network.yaml
+echo "        - ${ipv4_address}/24" >> /etc/netplan/99-network.yaml
+echo "      gateway4: ${ipv4_gateway}" >> /etc/netplan/99-network.yaml
+echo "      nameservers:" >> /etc/netplan/99-network.yaml
+echo "        addresses: [161.26.0.7, 161.26.0.8]" >> /etc/netplan/99-network.yaml
+netplan apply
+
