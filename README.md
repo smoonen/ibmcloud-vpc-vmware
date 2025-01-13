@@ -13,6 +13,7 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
   - `api_key` - IBM Cloud API key with sufficient permissions to manage VPC and DNS resources
   - `allowed_ips` - a list of allowed IPs for your bastion VSI
   - `bastion_pubkey` - public RSA key from bastion server to use for login to VMware guests
+  - `dns_instance_id` - id of the DNS service instance to be attached to your VPC
 - `inventory.ps1` - you must create this file as well and populate it as you go; inventory for PowerShell
 - [vpc_lib.py](vpc_lib.py) - contains a helper class for rudimentary idempotency; defaults to London
 - [start-ssh.ps1](start-ssh.ps1) - Helper script to start SSH and ESXi shell services on hosts
