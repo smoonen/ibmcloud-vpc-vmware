@@ -23,7 +23,7 @@ sg = vpclib.create_or_retrieve_security_group(inventory.vpc_id, sg_rules, 'smoon
 print("bastion_sg_id = '%s'" % sg['id'])
 
 # Create VNI
-vni = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, 'smoonen-vni-bastion', sg['id'])
+vni = vpclib.create_or_retrieve_vni('smoonen-vni-bastion', subnet_id = inventory.mgmt_subnet_id, security_group = sg['id'])
 print("vni_id = '%s'" % vni['id'])
 while vni['ips'][0]['address'] == '0.0.0.0' :
   time.sleep(1)

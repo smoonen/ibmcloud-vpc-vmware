@@ -31,7 +31,7 @@ sg = vpclib.create_or_retrieve_security_group(inventory.vpc_id, sg_rules, 'smoon
 print("vpc_sg_id = '%s'" % sg['id'])
 
 # Create vCenter VNI
-vcenter = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, "smoonen-vni-vcenter", sg['id'])
+vcenter = vpclib.create_or_retrieve_vni("smoonen-vni-vcenter", subnet_id = inventory.mgmt_subnet_id, security_group = sg['id'])
 print("vcenter_id = '%s'" % vcenter['id'])
 while vcenter['ips'][0]['address'] == '0.0.0.0' :
   time.sleep(1)
@@ -42,7 +42,7 @@ print("vcenter_ip = '%s'" % vcenter['ips'][0]['address'])
 nsx_vnis = []
 nsx_ips = []
 for suffix in ('', '0', '1', '2', 'edge0', 'edge1') :
-  vni = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, "smoonen-vni-nsx" + suffix, sg['id'])
+  vni = vpclib.create_or_retrieve_vni("smoonen-vni-nsx" + suffix, subnet_id = inventory.mgmt_subnet_id, security_group = sg['id'])
   while vni['ips'][0]['address'] == '0.0.0.0' :
     time.sleep(1)
     vni = vpclib.get_vni(vni['id'])
@@ -50,19 +50,17 @@ for suffix in ('', '0', '1', '2', 'edge0', 'edge1') :
   nsx_ips.append({ 'name' : "nsx" + suffix, 'ip' : vni['ips'][0]['address'], 'vni' : vni })
 
 # Create TEP VNIs (ten for now)
-nsx_tep_ips = []
 for suffix in range(10) :
-  vni = vpclib.create_or_retrieve_vni(inventory.tep_subnet_id, "smoonen-vni-nsxtep%d" % suffix, sg['id'])
+  vni = vpclib.create_or_retrieve_vni("smoonen-vni-nsxtep%d" % suffix, primary_ip = inventory.tep_ip_ids[suffix], security_group = sg['id'])
   while vni['ips'][0]['address'] == '0.0.0.0' :
     time.sleep(1)
     vni = vpclib.get_vni(vni['id'])
   print("nsxtep%d = '%s'" % (suffix, vni['ips'][0]['address']))
-  nsx_tep_ips.append({ 'name' : "nsxtep%d" % suffix, 'ip' : vni['ips'][0]['address'], 'vni' : vni })
 
 # Create uplink VNIs (two static, one VIP)
 uplink_ips = []
 for suffix in ("0", "1", "vip") :
-  vni = vpclib.create_or_retrieve_vni(inventory.uplink_subnet_id, "smoonen-vni-edgeuplink-%s" % suffix, sg['id'])
+  vni = vpclib.create_or_retrieve_vni("smoonen-vni-edgeuplink-%s" % suffix, subnet_id = inventory.uplink_subnet_id, security_group = sg['id'])
   while vni['ips'][0]['address'] == '0.0.0.0' :
     time.sleep(1)
     vni = vpclib.get_vni(vni['id'])
@@ -75,7 +73,7 @@ for host in ('host001', 'host002', 'host003') :
 
   # vmnic0 - management; this is the only vmnic whose IP address is used, for bootstrapping purposes
   # This is also the only vmnic where we will initially set allowed VLANS (below), to [2]
-  vmnic0 = vpclib.create_or_retrieve_vni(inventory.host_subnet_id, "smoonen-vni-%s-vmnic0" % host, sg['id'])
+  vmnic0 = vpclib.create_or_retrieve_vni("smoonen-vni-%s-vmnic0" % host, subnet_id = inventory.host_subnet_id, security_group = sg['id'])
   print("%s_vmnic0_id = '%s'" % (host, vmnic0['id']))
   while vmnic0['ips'][0]['address'] == '0.0.0.0' :
     time.sleep(1)
@@ -87,7 +85,7 @@ for host in ('host001', 'host002', 'host003') :
   # You should not expect that the PCI index (1-4) matches the vmnic index, and therefore we cannot set allowed VLANs yet.
   additional_networks = []
   for x in range(1, 5) :
-    vni = vpclib.create_or_retrieve_vni(inventory.host_subnet_id, "smoonen-vni-%s-pci%d" % (host, x), sg['id'])
+    vni = vpclib.create_or_retrieve_vni(subnet_id = inventory.host_subnet_id, name = "smoonen-vni-%s-pci%d" % (host, x), security_group = sg['id'])
     print("%s_pci%d_id = '%s'" % (host, x, vni['id']))
     additional_networks.append(pci_network_attachment('pci%d' % x, vni['id']))
 
@@ -98,7 +96,7 @@ for host in ('host001', 'host002', 'host003') :
                  { 'name' : 'vmk0', 'purpose' : 'vmotion', 'attach' : False },
                  { 'name' : 'vmk2', 'purpose' : 'vsan', 'attach' : False } )
   for vmk_model in vmk_models :
-    vni = vpclib.create_or_retrieve_vni(getattr(inventory, vmk_model['purpose'] + '_subnet_id'), "smoonen-vni-%s-%s-%s" % (host, vmk_model['name'], vmk_model['purpose']), sg['id'])
+    vni = vpclib.create_or_retrieve_vni(subnet_id = getattr(inventory, vmk_model['purpose'] + '_subnet_id'), name = "smoonen-vni-%s-%s-%s" % (host, vmk_model['name'], vmk_model['purpose']), security_group = sg['id'])
     while vni['ips'][0]['address'] == '0.0.0.0' :
       time.sleep(1)
       vni = vpclib.get_vni(vni['id'])
@@ -163,5 +161,4 @@ print("$nsx = @(")
 for x in nsx_ips :
   print("@{ name = '%s'; ip = '%s' }" % (x['name'], x['ip']))
 print(")")
-print("$nsx_tep_ips = @(" + ', '.join(map(lambda x : '"%s"' % x['ip'], nsx_tep_ips)) + ")")
 

@@ -78,53 +78,8 @@ resource "nsxt_policy_ip_pool_static_subnet" "static_subnet1" {
   gateway      = "192.168.4.1"
 
   allocation_range {
-    start = var.tep_ips[0]
-    end   = var.tep_ips[0]
-  }
-
-  allocation_range {
-    start = var.tep_ips[1]
-    end   = var.tep_ips[1]
-  }
-
-  allocation_range {
-    start = var.tep_ips[2]
-    end   = var.tep_ips[2]
-  }
-
-  allocation_range {
-    start = var.tep_ips[3]
-    end   = var.tep_ips[3]
-  }
-
-  allocation_range {
-    start = var.tep_ips[4]
-    end   = var.tep_ips[4]
-  }
-
-  allocation_range {
-    start = var.tep_ips[5]
-    end   = var.tep_ips[5]
-  }
-
-  allocation_range {
-    start = var.tep_ips[6]
-    end   = var.tep_ips[6]
-  }
-
-  allocation_range {
-    start = var.tep_ips[7]
-    end   = var.tep_ips[7]
-  }
-
-  allocation_range {
-    start = var.tep_ips[8]
-    end   = var.tep_ips[8]
-  }
-
-  allocation_range {
-    start = var.tep_ips[9]
-    end   = var.tep_ips[9]
+    start = "192.168.4.4"
+    end   = "192.168.4.13"
   }
 }
 

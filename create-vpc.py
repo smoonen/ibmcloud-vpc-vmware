@@ -29,6 +29,14 @@ print("tep_subnet_id = '%s'" % tep_subnet['id'])
 uplink_subnet = vpclib.create_or_retrieve_subnet(vpc['id'], '192.168.5.0/24', zone1, 'smoonen-lon-uplink1')
 print("uplink_subnet_id = '%s'" % uplink_subnet['id'])
 
+# Reserve TEP IPs .4 through .13 so that we can present a contiguous range to NSX
+tep_ip_ids = []
+print("tep_ip_ids = [")
+for x in range(4, 14) :
+  tep_ip = vpclib.reserve_or_retrieve_ip(tep_subnet['id'], "192.168.4.%d" % x, "smoonen-tep%d" % x)
+  print('  "%s",' % tep_ip['id'])
+print("]")
+
 # Create public gateway
 public_gateway = vpclib.create_or_retrieve_public_gateway(vpc['id'], zone1, 'smoonen-lon-gateway')
 print("public_gateway_id = '%s'" % public_gateway['id'])

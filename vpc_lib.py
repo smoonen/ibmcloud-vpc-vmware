@@ -56,6 +56,15 @@ class VPClib :
     response = self.service.create_subnet(subnet_model)
     return response.result
 
+  def reserve_or_retrieve_ip(self, subnet_id, address, name) :
+    def helper(**kwargs) :
+      return self.service.list_subnet_reserved_ips(subnet_id, **kwargs)
+    for ip in VPCiterator(helper, 'reserved_ips') :
+      if ip['name'] == name :
+        return ip
+    response = self.service.create_subnet_reserved_ip(subnet_id, address = address, name = name)
+    return response.result
+
   def create_or_retrieve_public_gateway(self, vpc_id, zone, name) :
     for gateway in VPCiterator(self.service.list_public_gateways, 'public_gateways') :
       if gateway['name'] == name :
@@ -80,11 +89,18 @@ class VPClib :
 
   # There are several forms of VNI creation that can attach at creation time.
   # This form attaches to a subnet and so the VPC and zone are implicit.
-  def create_or_retrieve_vni(self, subnet_id, name, security_group = None) :
+  def create_or_retrieve_vni(self, name, security_group = None, subnet_id = None, primary_ip = None) :
     for vni in VPCiterator(self.service.list_virtual_network_interfaces, 'virtual_network_interfaces') :
       if vni['name'] == name :
         return vni
-    response = self.service.create_virtual_network_interface(name = name, subnet = { 'id' : subnet_id }, allow_ip_spoofing = True, enable_infrastructure_nat = True, protocol_state_filtering_mode = 'auto', security_groups = [ { 'id' : security_group }])
+    kwargs = { 'name'                          : name,
+               'allow_ip_spoofing'             : True,
+               'enable_infrastructure_nat'     : True,
+               'protocol_state_filtering_mode' : 'auto' }
+    if security_group : kwargs['security_groups'] = [ { 'id' : security_group } ]
+    if subnet_id      : kwargs['subnet'] = { 'id' : subnet_id }
+    if primary_ip     : kwargs['primary_ip'] = { 'id' : primary_ip }
+    response = self.service.create_virtual_network_interface(**kwargs)
     return response.result
 
   def get_vni(self, vni_id) :

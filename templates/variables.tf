@@ -30,8 +30,3 @@ variable "ssh_authorized_key" {
   default = "{{ inventory.bastion_pubkey }}"
 }
 
-variable "tep_ips" {
-  type = list(string)
-  default = [ "{{ inventory.nsxtep0 }}", "{{ inventory.nsxtep1 }}", "{{ inventory.nsxtep2 }}", "{{ inventory.nsxtep3 }}", "{{ inventory.nsxtep4 }}", "{{ inventory.nsxtep5 }}", "{{ inventory.nsxtep6 }}", "{{ inventory.nsxtep7 }}", "{{ inventory.nsxtep8 }}", "{{ inventory.nsxtep9 }}" ]
-}
-
