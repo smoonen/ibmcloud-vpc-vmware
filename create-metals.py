@@ -68,6 +68,7 @@ for suffix in ("0", "1", "vip") :
   uplink_ips.append({ 'name' : "edgeuplink_%s" % suffix, 'ip' : vni['ips'][0]['address'], 'vni' : vni })
 
 # Create three hosts
+vmk1_ips = []
 for host in ('host001', 'host002', 'host003') :
   # Create the VNIs for PCI / vmnic
 
@@ -105,7 +106,7 @@ for host in ('host001', 'host002', 'host003') :
     if vmk_model['purpose'] == 'vsan' : vsan_ip = vni['ips'][0]['address']
     if vmk_model['attach'] :
       additional_networks.append(vlan_network_attachment(vmk_model['name'], vni['id'], vmk_model['vlan'], vmk_model['float']))
-      vmk1_ip = vni['ips'][0]['address']
+      vmk1_ips.append(vni['ips'][0]['address'])
 
   # Add vCenter and NSX to first host
   # Note that we cannot attach TEP IPs right now because we don't know which interface will take on VLAN 5
@@ -141,7 +142,7 @@ for host in ('host001', 'host002', 'host003') :
     password = rsa_priv.key.decrypt(base64.decodebytes(bytes(init['user_accounts'][0]['encrypted_password'], 'ascii')), padding.PKCS1v15()).decode('ascii')
     print("%s_password = '%s'" % (host, password))
 
-  ps_vars += "@{ name = '%s'; pci = '%s'; vlan = '%s'; vmotion = '%s'; vsan = '%s'; password = '%s' }\n" % (host, vmnic0['ips'][0]['address'], vmk1_ip, vmotion_ip, vsan_ip, password)
+  ps_vars += "@{ name = '%s'; pci = '%s'; vlan = '%s'; vmotion = '%s'; vsan = '%s'; password = '%s' }\n" % (host, vmnic0['ips'][0]['address'], vmk1_ips[-1], vmotion_ip, vsan_ip, password)
 
 # Note: the key object is attached to the bare metal for the life of the server and cannot be removed at this point
 
@@ -151,6 +152,19 @@ assert(len(tables) == 1)
 vpclib.create_or_retrieve_route(inventory.vpc_id, tables[0]['id'], 'route11', '10.1.1.0/24', zone1, uplink_ips[2]['ip'])
 vpclib.create_or_retrieve_route(inventory.vpc_id, tables[0]['id'], 'route21', '10.2.1.0/24', zone1, uplink_ips[2]['ip'])
 vpclib.create_or_retrieve_route(inventory.vpc_id, tables[0]['id'], 'route22', '10.2.2.0/24', zone1, uplink_ips[2]['ip'])
+
+# Create or update DNS entries based on the addresses assigned above
+zone = vpclib.create_or_retrieve_zone(inventory.dns_instance_id, 'example.com')
+vpclib.create_or_update_Arecord(zone, 'vcenter.example.com', vcenter['ips'][0]['address'])
+vpclib.create_or_update_Arecord(zone, 'host001.example.com', vmk1_ips[0])
+vpclib.create_or_update_Arecord(zone, 'host002.example.com', vmk1_ips[1])
+vpclib.create_or_update_Arecord(zone, 'host003.example.com', vmk1_ips[2])
+vpclib.create_or_update_Arecord(zone, 'nsx.example.com', nsx_ips[0]['ip'])
+vpclib.create_or_update_Arecord(zone, 'nsx0.example.com', nsx_ips[1]['ip'])
+vpclib.create_or_update_Arecord(zone, 'nsx1.example.com', nsx_ips[2]['ip'])
+vpclib.create_or_update_Arecord(zone, 'nsx2.example.com', nsx_ips[3]['ip'])
+vpclib.create_or_update_Arecord(zone, 'edge0.example.com', nsx_ips[4]['ip'])
+vpclib.create_or_update_Arecord(zone, 'edge1.example.com', nsx_ips[5]['ip'])
 
 # Post deployment, the ESXi vmk0 interfaces need to be re-IPed to the VLAN VNIs; as part of this the gateway IP and VLAN also need to be corrected.
 # The second vmnic will be used later to bootstrap the DVS; there is no need to add it to the vSwitch in this temporary unmanaged state.

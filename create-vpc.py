@@ -1,4 +1,5 @@
 from vpc_lib import VPClib
+import inventory
 
 # Commonalities
 zone1 = { 'name' : 'eu-gb-1' }
@@ -45,4 +46,8 @@ print("public_gateway_ip = '%s'" % public_gateway['floating_ip']['address'])
 # Attach this gateway to uplink and management subnets
 vpclib.attach_public_gateway(uplink_subnet['id'], public_gateway['id'])
 vpclib.attach_public_gateway(mgmt_subnet['id'], public_gateway['id'])
+
+# Attach this VPC to our DNS instance
+zone = vpclib.create_or_retrieve_zone(inventory.dns_instance_id, 'example.com')
+vpclib.create_or_retrieve_permitted_network(inventory.dns_instance_id, zone['id'], vpc['crn'])
 

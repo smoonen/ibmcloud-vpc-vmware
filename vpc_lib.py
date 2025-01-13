@@ -202,6 +202,15 @@ class VPClib :
     response = self.dnssvc.create_dnszone(dns_inst, name = domain)
     return response.result
 
+  def create_or_retrieve_permitted_network(self, dns_inst, zone, vpc_crn) :
+    def helper(**kwargs) :
+      return self.dnssvc.list_permitted_networks(dns_inst, zone, **kwargs)
+    for net in VPCiterator(helper, 'permitted_networks') :
+      if net['permitted_network']['vpc_crn'] == vpc_crn :
+        return net
+    response = self.dnssvc.create_permitted_network(dns_inst, zone, type = 'vpc', permitted_network = { 'vpc_crn' : vpc_crn })
+    return response.result
+
   def list_zonerecords(self, zone) :
     def helper(**kwargs) :
       return self.dnssvc.list_resource_records(zone['instance_id'], zone['id'], **kwargs)
