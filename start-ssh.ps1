@@ -1,4 +1,4 @@
-Set-PowerCliConfiguration -InvalidCertificateAction Ignore -Confirm:$false
+Set-PowerCliConfiguration -InvalidCertificateAction Ignore -DefaultVIServerMode Single -Confirm:$false
 
 # Source inventory data
 . .\inventory.ps1
