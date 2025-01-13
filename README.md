@@ -51,11 +51,11 @@ It is tempting to use the PCI IP address for the corresponding vmknic. However, 
 
 Here is my vmknic and virtual machine addressing scheme:
 
-- [vmk1] Management (also used for management VMs like vCenter) - 192.168.2.0/24, VLAN 2
-- [vmk0] vMotion - 192.168.3.0/24, VLAN 3
-- [vmk2] vSAN - 192.168.4.0/24, VLAN 4
-- TEPs (also used for edges) - 192.168.5.0/24, VLAN 5
-- Uplinks (used exclusively for edges and not for vmknic) - 192.168.6.0/24, VLAN 6
+- [vmk1] Management (also used for management VMs like vCenter) - 192.168.1.0/24, VLAN 1
+- [vmk0] vMotion - 192.168.2.0/24, VLAN 2
+- [vmk2] vSAN - 192.168.3.0/24, VLAN 3
+- TEPs (also used for edges) - 192.168.4.0/24, VLAN 4
+- Uplinks (used exclusively for edges and not for vmknic) - 192.168.5.0/24, VLAN 5
 
 The first two vmknic ids are reversed because of the migration of the host IPs from the PCI interface to a VLAN interface.
 

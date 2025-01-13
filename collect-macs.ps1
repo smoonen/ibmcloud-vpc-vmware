@@ -1,4 +1,4 @@
-Set-PowerCliConfiguration -InvalidCertificateAction Prompt
+Set-PowerCliConfiguration -InvalidCertificateAction Ignore
 
 # Source inventory data
 . .\inventory.ps1

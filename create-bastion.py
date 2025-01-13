@@ -20,7 +20,7 @@ image_id = windows_images[0]['id']
 sg_rules = list(map(lambda x : { 'direction' : 'inbound', 'ip_version' : 'ipv4', 'protocol' : 'all', 'remote' : { 'address' : x } }, inventory.allowed_ips))
 sg_rules.append({ 'direction' : 'outbound', 'ip_version' : 'ipv4', 'protocol' : 'all' })
 sg = vpclib.create_or_retrieve_security_group(inventory.vpc_id, sg_rules, 'smoonen-sg-firewall')
-print("sg_id = '%s'" % sg['id'])
+print("bastion_sg_id = '%s'" % sg['id'])
 
 # Create VNI
 vni = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, 'smoonen-vni-bastion', sg['id'])
@@ -28,7 +28,7 @@ print("vni_id = '%s'" % vni['id'])
 while vni['ips'][0]['address'] == '0.0.0.0' :
   time.sleep(1)
   vni = vpclib.get_vni(vni['id'])
-print("vni_ip = '%s'" % vni['ips'][0]['address'])
+print("bastion_vni_ip = '%s'" % vni['ips'][0]['address'])
 
 # Create RSA key
 try :
@@ -67,7 +67,7 @@ if 'password' in init :
   password = rsa_priv.key.decrypt(base64.decodebytes(bytes(init['password']['encrypted_password'], 'ascii')), padding.PKCS1v15())
 else :
   password = b'unset'
-print("password = '%s'" % password.decode('ascii'))
+print("bastion_password = '%s'" % password.decode('ascii'))
 
 # Note: the key object is attached to the VSI for the life of the VSI and cannot be removed at this point
 

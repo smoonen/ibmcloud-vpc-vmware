@@ -60,7 +60,7 @@ class VPClib :
     for gateway in VPCiterator(self.service.list_public_gateways, 'public_gateways') :
       if gateway['name'] == name :
         return gateway
-    response = self.create_public_gateway({ 'id' : vpc_id }, zone, name)
+    response = self.service.create_public_gateway({ 'id' : vpc_id }, zone, name = name)
     return response.result
 
   def attach_public_gateway(self, subnet_id, gateway_id) :
@@ -97,11 +97,11 @@ class VPClib :
         return vni
     return None
 
-  def create_or_retrieve_key(self, key, name, key_type) :
+  def create_or_retrieve_key(self, public_key, name, key_type) :
     for key in VPCiterator(self.service.list_keys, 'keys') :
       if key['name'] == name :
         return key
-    response = self.service.create_key(key, name = name, type = key_type)
+    response = self.service.create_key(public_key, name = name, type = key_type)
     return response.result
 
   def create_or_retrieve_vsi(self, model) :
@@ -176,7 +176,7 @@ class VPClib :
 
   def list_dnszones(self, dns_inst) :
     def helper(**kwargs) :
-      return self.dnssvc.list_dnszone(dns_inst, **kwargs)
+      return self.dnssvc.list_dnszones(dns_inst, **kwargs)
     return VPCiterator(helper, 'dnszones')
 
   def create_or_retrieve_zone(self, dns_inst, domain) :

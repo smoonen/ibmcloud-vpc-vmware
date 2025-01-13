@@ -1,4 +1,4 @@
-Set-PowerCliConfiguration -InvalidCertificateAction Prompt
+Set-PowerCliConfiguration -InvalidCertificateAction Ignore
 
 # Source inventory data
 . .\inventory.ps1
@@ -14,7 +14,8 @@ foreach($folder in Get-Folder) {
 $dc = New-Datacenter -Location $dc_folder -Name ibmcloud
 
 # Create cluster and add hosts
-$cluster = New-Cluster -Location $dc -Name london -DrsEnabled -DrsAutomationLevel FullyAutomated -HAAdmissionControlEnabled -HAEnabled -HAFailoverLevel 1 -VsanEnabled -VsanEsaEnabled
+# Note that we do not specify -HAAdmissionControlEnabled / -HAFailoverLevel 1 only because the cluster is relatively small
+$cluster = New-Cluster -Location $dc -Name london -DrsEnabled -DrsAutomationLevel FullyAutomated -HAEnabled -VsanEnabled -VsanEsaEnabled
 foreach($esxi in $hosts) {
   Add-VMHost -Location $cluster -Name ($esxi.name + ".example.com") -User root -Password $esxi.password -Force
 }
@@ -37,17 +38,17 @@ foreach($esxi in $host_list) {
 }
 
 # Set allowed VLANs. Note that although this approach is deprecated; I have not been able to get Set-VDVlanConfiguration to work on uplinks.
-Get-VDPortGroup -VDSwitch $mgmt_switch | Set-VDPortGroup -VlanTrunkRange "2"
-Get-VDPortGroup -VDSwitch $vmotion_switch | Set-VDPortGroup -VlanTrunkRange "3"
-Get-VDPortGroup -VDSwitch $vsan_switch | Set-VDPortGroup -VlanTrunkRange "4"
-Get-VDPortGroup -VDSwitch $tep_switch | Set-VDPortGroup -VlanTrunkRange "5"
-Get-VDPortGroup -VDSwitch $uplink_switch | Set-VDPortGroup -VlanTrunkRange "6"
+Get-VDPortGroup -VDSwitch $mgmt_switch | Set-VDPortGroup -VlanTrunkRange "1"
+Get-VDPortGroup -VDSwitch $vmotion_switch | Set-VDPortGroup -VlanTrunkRange "2"
+Get-VDPortGroup -VDSwitch $vsan_switch | Set-VDPortGroup -VlanTrunkRange "3"
+Get-VDPortGroup -VDSwitch $tep_switch | Set-VDPortGroup -VlanTrunkRange "4"
+Get-VDPortGroup -VDSwitch $uplink_switch | Set-VDPortGroup -VlanTrunkRange "5"
 
 # Create portgroups. Note that we do not create a TEP portgroup; the edge TEPs will use a VLAN-backed segment instead.
-$mgmt_portgroup = New-VDPortGroup -VDSwitch $mgmt_switch -Name dpg-mgmt -VlanId 2
-$vmotion_portgroup = New-VDPortGroup -VDSwitch $vmotion_switch -Name dpg-vmotion -VlanId 3
-$vsan_portgroup = New-VDPortGroup -VDSwitch $vsan_switch -Name dpg-vsan -VlanId 4
-$uplink_portgroup = New-VDPortGroup -VDSwitch $uplink_switch -Name dpg-uplink -VlanId 6
+$mgmt_portgroup = New-VDPortGroup -VDSwitch $mgmt_switch -Name dpg-mgmt -VlanId 1
+$vmotion_portgroup = New-VDPortGroup -VDSwitch $vmotion_switch -Name dpg-vmotion -VlanId 2
+$vsan_portgroup = New-VDPortGroup -VDSwitch $vsan_switch -Name dpg-vsan -VlanId 3
+$uplink_portgroup = New-VDPortGroup -VDSwitch $uplink_switch -Name dpg-uplink -VlanId 5
 
 # Create vSAN and vMotion interfaces before we configure management, since we have to migrate vCenter
 foreach($esxi in $hosts) {
@@ -58,7 +59,7 @@ foreach($esxi in $hosts) {
     }
   }
   New-VMHostNetworkAdapter -VMHost $vmhost -VirtualSwitch $vsan_switch -PortGroup $vsan_portgroup -IP $esxi.vsan -SubnetMask "255.255.255.0" -ConsoleNic:$false -ManagementTrafficEnabled:$false -VmotionEnabled:$false -VsanTrafficEnabled:$true -Mtu 9000
-  Get-VMHostNetwork -VMHost $vmhost | Set-VMHostNetwork -VMKernelGatewayDevice vmk2 -VMKernelGateway "192.168.4.1"
+  Get-VMHostNetwork -VMHost $vmhost | Set-VMHostNetwork -VMKernelGatewayDevice vmk2 -VMKernelGateway "192.168.3.1"
 
   $vmnic1 = Get-VMHostNetworkAdapter -VMHost $vmhost -Name vmnic1
   Add-VDSwitchPhysicalNetworkAdapter -DistributedSwitch $vmotion_switch -VMHostPhysicalNIC $vmnic1 -Confirm:$false
@@ -70,7 +71,7 @@ foreach($esxi in $hosts) {
   Add-VDSwitchPhysicalNetworkAdapter -DistributedSwitch $uplink_switch -VMHostPhysicalNIC $vmnic4 -Confirm:$false
 }
 foreach($stack in Get-VMHostNetworkStack -Id vmotion) {
-  Set-VMHostNetworkStack -NetworkStack $stack -VMKernelGateway "192.168.3.1"
+  Set-VMHostNetworkStack -NetworkStack $stack -VMKernelGateway "192.168.2.1"
 }
 
 # First migrate managment of host003

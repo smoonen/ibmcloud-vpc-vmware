@@ -28,7 +28,7 @@ sg_rules = [ { 'direction' : 'inbound', 'ip_version' : 'ipv4', 'protocol' : 'all
              { 'direction' : 'inbound', 'ip_version' : 'ipv4', 'protocol' : 'all', 'remote' : { 'cidr_block' : '10.0.0.0/8' } },
              { 'direction' : 'outbound', 'ip_version' : 'ipv4', 'protocol' : 'all' } ]
 sg = vpclib.create_or_retrieve_security_group(inventory.vpc_id, sg_rules, 'smoonen-sg-intravpc')
-print("sg_id = '%s'" % sg['id'])
+print("vpc_sg_id = '%s'" % sg['id'])
 
 # Create vCenter VNI
 vcenter = vpclib.create_or_retrieve_vni(inventory.mgmt_subnet_id, "smoonen-vni-vcenter", sg['id'])
@@ -94,7 +94,7 @@ for host in ('host001', 'host002', 'host003') :
   # Create the VNIs for VLAN / vmknic
   # Note that we are leaving TEP and uplink management for later.
   # Because we aren't assigning most allowed VLANs at this time, we won't be able to attach the vMotion and vSAN VNIs. We will create them now but save attachment for later.
-  vmk_models = ( { 'name' : 'vmk1', 'purpose' : 'mgmt', 'vlan' : 2, 'float' : False, 'attach' : True },
+  vmk_models = ( { 'name' : 'vmk1', 'purpose' : 'mgmt', 'vlan' : 1, 'float' : False, 'attach' : True },
                  { 'name' : 'vmk0', 'purpose' : 'vmotion', 'attach' : False },
                  { 'name' : 'vmk2', 'purpose' : 'vsan', 'attach' : False } )
   for vmk_model in vmk_models :
@@ -112,9 +112,9 @@ for host in ('host001', 'host002', 'host003') :
   # Add vCenter and NSX to first host
   # Note that we cannot attach TEP IPs right now because we don't know which interface will take on VLAN 5
   if host == 'host001' :
-    additional_networks.append(vlan_network_attachment('vcenter', vcenter['id'], 2, True))
+    additional_networks.append(vlan_network_attachment('vcenter', vcenter['id'], 1, True))
     for nsx in nsx_ips :
-      additional_networks.append(vlan_network_attachment(nsx['name'], nsx['vni']['id'], 2, True))
+      additional_networks.append(vlan_network_attachment(nsx['name'], nsx['vni']['id'], 1, True))
 
   # Create bare metal
   bm_model = {
@@ -126,7 +126,7 @@ for host in ('host001', 'host002', 'host003') :
                                      'keys'  : [ { 'id' : key['id'] } ] },
     'trusted_platform_module'    : { 'mode' : 'tpm_2' },
     'enable_secure_boot'         : True,
-    'primary_network_attachment' : pci_network_attachment('vmnic0', vmnic0['id'], [2]),
+    'primary_network_attachment' : pci_network_attachment('vmnic0', vmnic0['id'], [1]),
     'network_attachments'        : additional_networks
   }
   bm = vpclib.create_or_retrieve_bare_metal(bm_model)

@@ -2,7 +2,7 @@
 
 # Deploy NSX
 $ova = Get-ChildItem Downloads\nsx-unified-appliance*.ova
-D:\vcsa\ovftool\win32\ovftool --name=nsx0 --deploymentOption=medium --X:injectOvfEnv --sourceType=OVA --allowExtraConfig --datastore=vsanDatastore --network="dpg-mgmt" --acceptAllEulas --noSSLVerify --diskMode=thin --quiet --hideEula --powerOn --prop:nsx_ip_0=$($nsx[1].ip) --prop:nsx_netmask_0=255.255.255.0 --prop:nsx_gateway_0=192.168.2.1 --prop:nsx_dns1_0="161.26.0.7 161.26.0.8" --prop:nsx_domain_0=example.com --prop:nsx_ntp_0=161.26.0.6 --prop:nsx_isSSHEnabled=True --prop:"nsx_passwd_0=$nsx_password" --prop:"nsx_cli_passwd_0=$nsx_cli_password" --prop:"nsx_cli_audit_passwd_0=$nsx_cli_audit_password" --prop:nsx_hostname=nsx0.example.com --prop:nsx_allowSSHRootLogin=True --prop:nsx_role="NSX Manager" --ipProtocol=IPv4 --ipAllocationPolicy="fixedPolicy" $ova[0] "vi://administrator@vsphere.local:$vcenter_sso_password@vcenter.example.com/ibmcloud/host/london"
+D:\vcsa\ovftool\win32\ovftool --name=nsx0 --deploymentOption=medium --X:injectOvfEnv --sourceType=OVA --allowExtraConfig --datastore=vsanDatastore --network="dpg-mgmt" --acceptAllEulas --noSSLVerify --diskMode=thin --quiet --hideEula --powerOn --prop:nsx_ip_0=$($nsx[1].ip) --prop:nsx_netmask_0=255.255.255.0 --prop:nsx_gateway_0=192.168.1.1 --prop:nsx_dns1_0="161.26.0.7 161.26.0.8" --prop:nsx_domain_0=example.com --prop:nsx_ntp_0=161.26.0.6 --prop:nsx_isSSHEnabled=True --prop:"nsx_passwd_0=$nsx_password" --prop:"nsx_cli_passwd_0=$nsx_cli_password" --prop:"nsx_cli_audit_passwd_0=$nsx_cli_audit_password" --prop:nsx_hostname=nsx0.example.com --prop:nsx_allowSSHRootLogin=True --prop:nsx_role="NSX Manager" --ipProtocol=IPv4 --ipAllocationPolicy="fixedPolicy" $ova[0] "vi://administrator@vsphere.local:$vcenter_sso_password@vcenter.example.com/ibmcloud/host/london"
 
 echo "Wait for NSX to start . . ."
 Start-Sleep -Seconds 300
@@ -44,7 +44,7 @@ for($i = 1; $i -le 2; $i++) {
   $node.user_settings.root_password = $nsx_cli_password
   $node.deployment_config = $a.Help.create.add_cluster_node_VM_info.deployment_requests.Element.deployment_config.vsphere_cluster_node_VM_deployment_config.Create()
   $node.deployment_config.compute_id = $cluster.ExtensionData.MoRef.Value
-  $node.deployment_config.default_gateway_addresses.Add("192.168.2.1")
+  $node.deployment_config.default_gateway_addresses.Add("192.168.1.1")
   $node.deployment_config.dns_servers.Add("161.26.0.7")
   $node.deployment_config.dns_servers.Add("161.26.0.8")
   $node.deployment_config.hostname = "nsx$i.example.com"

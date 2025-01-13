@@ -74,8 +74,8 @@ resource "nsxt_policy_ip_pool" "pool1" {
 resource "nsxt_policy_ip_pool_static_subnet" "static_subnet1" {
   display_name = "tep-pool-subnet"
   pool_path    = nsxt_policy_ip_pool.pool1.path
-  cidr         = "192.168.5.0/24"
-  gateway      = "192.168.5.1"
+  cidr         = "192.168.4.0/24"
+  gateway      = "192.168.4.1"
 
   allocation_range {
     start = var.tep_ips[0]
@@ -133,7 +133,7 @@ resource "nsxt_policy_ip_pool_static_subnet" "static_subnet1" {
 resource "nsxt_policy_uplink_host_switch_profile" "esxi_uplink_profile" {
   display_name = "esxi_uplink_profile"
 
-  transport_vlan = 5
+  transport_vlan = 4
   overlay_encap  = "GENEVE"
 
   teaming {
@@ -184,7 +184,7 @@ data "nsxt_policy_host_transport_node_collection_realization" "htnc1_realization
 resource "nsxt_policy_vlan_segment" "segment-edge-tep" {
   display_name        = "segment-edge-tep"
   transport_zone_path = data.nsxt_policy_transport_zone.vlan_transport_zone.path
-  vlan_ids            = [5]
+  vlan_ids            = [4]
 }
 
 # Edge nodes and cluster
@@ -263,7 +263,7 @@ resource "nsxt_edge_transport_node" "edge_node0" {
         ip_addresses  = [var.nsx.edge0]
         prefix_length = 24
       }
-      default_gateway_address = ["192.168.2.1"]
+      default_gateway_address = ["192.168.1.1"]
     }
   }
   node_settings {
@@ -329,7 +329,7 @@ resource "nsxt_edge_transport_node" "edge_node1" {
         ip_addresses  = [var.nsx.edge1]
         prefix_length = 24
       }
-      default_gateway_address = ["192.168.2.1"]
+      default_gateway_address = ["192.168.1.1"]
     }
   }
   node_settings {
@@ -420,7 +420,7 @@ resource "nsxt_policy_static_route" "default" {
   network      = "0.0.0.0/0"
 
   next_hop {
-    ip_address = "192.168.6.1"
+    ip_address = "192.168.5.1"
   }
 }
 
