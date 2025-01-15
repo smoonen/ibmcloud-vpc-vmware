@@ -16,6 +16,7 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
   - `dns_instance_id` - id of the DNS service instance to be attached to your VPC
 - `inventory.ps1` - you must create this file as well and populate it as you go; inventory for PowerShell
 - [vpc_lib.py](vpc_lib.py) - contains a helper class for rudimentary idempotency; defaults to London
+- [reinitialize-metals.py](reinitialize-metals.py) - reinitialize bare metal servers to perform fresh testing
 - [start-ssh.ps1](start-ssh.ps1) - Helper script to start SSH and ESXi shell services on hosts
 - [terraform.tf](terraform.tf) - needed to install NSX provider
 - `templates/`

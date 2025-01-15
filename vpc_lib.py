@@ -133,6 +133,11 @@ class VPClib :
     response = self.service.get_instance_initialization(vsi_id)
     return response.result
 
+  def list_bare_metal_servers(self, vpc_id) :
+    def helper(**kwargs) :
+      return self.service.list_bare_metal_servers(vpc_id = vpc_id, **kwargs)
+    return VPCiterator(helper, 'bare_metal_servers')
+
   def create_or_retrieve_bare_metal(self, model) :
     def helper(**kwargs) :
       return self.service.list_bare_metal_servers(vpc_id = model['vpc']['id'], **kwargs)
@@ -142,8 +147,20 @@ class VPClib :
     response = self.service.create_bare_metal_server(model)
     return response.result
 
+  def get_bare_metal(self, bm_id) :
+    response = self.service.get_bare_metal_server(bm_id)
+    return response.result
+
   def get_bare_metal_initialization(self, bm_id) :
     response = self.service.get_bare_metal_server_initialization(bm_id)
+    return response.result
+
+  def stop_bare_metal(self, bm_id, type = 'hard') :
+    response = self.service.stop_bare_metal_server(bm_id, type)
+    return response.result
+
+  def reinitialize_bare_metal(self, bm_id, image_id, key_id) :
+    response = self.service.replace_bare_metal_server_initialization(bm_id, { 'id' : image_id }, [ { 'id' : key_id } ])
     return response.result
 
   def get_bare_metal_network_attachments(self, bm_id) :
