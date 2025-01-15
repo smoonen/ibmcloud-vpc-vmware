@@ -34,8 +34,9 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
 9. [configure-cluster.ps1](configure-cluster.ps1) - create and configure ESA cluster; set inventory variable `$vcenter_sso_password` before running; if variables `$vcfkey` and `$vsankey` are set, these are applied to the cluster
 10. [deploy-nsx.ps1](deploy-nsx.ps1) - deploy and configure NSX cluster; before running set inventory variables `$nsx_password`, `$nsx_cli_password`, and `$nsx_cli_audit_password`
 11. [generate-terraform.py](generate-terraform.py) - generate `variables.tf` file for Terraform; set inventory variables `vdefend_key`, `nsx_password`, `nsx_cli_password`, and `nsx_cli_audit_password` before running
-12. [main.tf](main.tf) - apply Terraform plan to configure hosts, segment, and edges
-13. [vms.tf](vms.tf) and [ubuntu-userdata.yml](ubuntu-userdata.yml) - subsequent to edge configuration, deploy test VMs to each segment
+12. [terraform.tf](terraform.tf) - Tearraform provider specification; the plan is outlined in:
+  - [main.tf](main.tf) - apply Terraform plan to configure NSX for hosts, segment, and edges
+  - [vms.tf](vms.tf) and [ubuntu-userdata.yml](ubuntu-userdata.yml) - subsequent to edge configuration, deploy test VMs to each segment
 
 ## VPC interface and addressing scheme
 
