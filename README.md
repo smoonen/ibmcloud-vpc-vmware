@@ -18,7 +18,6 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
 - [vpc_lib.py](vpc_lib.py) - contains a helper class for rudimentary idempotency; defaults to London
 - [reinitialize-metals.py](reinitialize-metals.py) - reinitialize bare metal servers to perform fresh testing
 - [start-ssh.ps1](start-ssh.ps1) - Helper script to start SSH and ESXi shell services on hosts
-- [terraform.tf](terraform.tf) - needed to install NSX provider
 - `templates/`
   - [vcsa-deploy.json](templates/vcsa-deploy.json) - Jinja2 template for VCSA install JSON
   - [variables.tf](templates/variables.tf) - will be used to generate Terraform variables
