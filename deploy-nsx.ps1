@@ -83,8 +83,10 @@ do {
 } until(($cluster_details.nodes.count -eq 3) -and ($status.detailed_cluster_status.overall_status -eq "STABLE"))
 
 # Set cluster virtual IP
+# Note: Usually you would specify "true" only if you wanted to skip duplicate IP checks
+# However, I have found that "false" sometimes fails simply if nsx0 is no longer the elected leader at this point
 $v = Get-NsxtService "com.vmware.nsx.cluster.api_virtual_ip"
-$v.setvirtualip("false", "::", $nsx[0].ip)
+$v.setvirtualip("true", "::", $nsx[0].ip)
 
 # Anti-colocate controllers
 $vms = Get-VM -Name "nsx*"
