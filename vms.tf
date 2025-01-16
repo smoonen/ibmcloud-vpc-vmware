@@ -6,17 +6,14 @@ variable "vm_settings" {
     ubuntu11 = {
       ipv4_address = "10.1.1.2"
       ipv4_gateway = "10.1.1.1"
-      network      = "segment-10-1-1"
     }
     ubuntu21 = {
       ipv4_address = "10.2.1.2"
       ipv4_gateway = "10.2.1.1"
-      network      = "segment-10-2-1"
     }
     ubuntu22 = {
       ipv4_address = "10.2.2.2"
       ipv4_gateway = "10.2.2.1"
-      network      = "segment-10-2-2"
     }
   }
 }
@@ -33,11 +30,19 @@ data "vsphere_host" "host" {
   datacenter_id = data.vsphere_datacenter.datacenter.id
 }
 
-data "vsphere_network" "network" {
-  for_each      = var.vm_settings
-  name          = each.value.network
+data "vsphere_network" "n1" {
+  name          = data.nsxt_policy_segment_realization.s1.network_name
   datacenter_id = data.vsphere_datacenter.datacenter.id
-  depends_on    = [nsxt_policy_segment.segment1, nsxt_policy_segment.segment2, nsxt_policy_segment.segment3]
+}
+
+data "vsphere_network" "n2" {
+  name          = data.nsxt_policy_segment_realization.s2.network_name
+  datacenter_id = data.vsphere_datacenter.datacenter.id
+}
+
+data "vsphere_network" "n3" {
+  name          = data.nsxt_policy_segment_realization.s3.network_name
+  datacenter_id = data.vsphere_datacenter.datacenter.id
 }
 
 # Ubuntu source
@@ -84,7 +89,7 @@ resource "vsphere_virtual_machine" "ubuntu_vms" {
   firmware             = data.vsphere_ovf_vm_template.ovf-ubuntu-24-04-lts.firmware
   scsi_type            = data.vsphere_ovf_vm_template.ovf-ubuntu-24-04-lts.scsi_type
   network_interface {
-    network_id   = data.vsphere_network.network[each.key].id
+    network_id   = each.key == "ubuntu11" ? data.vsphere_network.n1.id : (each.key == "ubuntu21" ? data.vsphere_network.n2.id : data.vsphere_network.n3.id)
     adapter_type = "vmxnet3"
   }
   cdrom {

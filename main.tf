@@ -436,6 +436,18 @@ resource "nsxt_policy_segment" "segment3" {
   depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
 }
 
+data "nsxt_policy_segment_realization" "s1" {
+  path = nsxt_policy_segment.segment1.path
+}
+
+data "nsxt_policy_segment_realization" "s2" {
+  path = nsxt_policy_segment.segment2.path
+}
+
+data "nsxt_policy_segment_realization" "s3" {
+  path = nsxt_policy_segment.segment3.path
+}
+
 # T0 gateway firewall rules; allow outbound, filter inbound
 
 resource "nsxt_policy_gateway_policy" "OutboundPolicy" {
