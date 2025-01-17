@@ -142,6 +142,10 @@ resource "nsxt_policy_vlan_segment" "segment-edge-tep" {
   vlan_ids            = [4]
 }
 
+data "nsxt_policy_segment_realization" "segment-edge-tep" {
+  path = nsxt_policy_vlan_segment.segment-edge-tep.path
+}
+
 # Edge nodes and cluster
 
 resource "nsxt_policy_transport_zone" "vlan_transport_zone_edge" {
@@ -228,6 +232,8 @@ resource "nsxt_edge_transport_node" "edge_node0" {
     allow_ssh_root_login = true
     enable_ssh           = true
   }
+
+  depends_on = [data.nsxt_policy_segment_realization.segment-edge-tep]
 }
 
 resource "nsxt_edge_transport_node" "edge_node1" {
@@ -294,6 +300,8 @@ resource "nsxt_edge_transport_node" "edge_node1" {
     allow_ssh_root_login = true
     enable_ssh           = true
   }
+
+  depends_on = [data.nsxt_policy_segment_realization.segment-edge-tep]
 }
 
 data "nsxt_transport_node_realization" "edge_node0_realization" {
