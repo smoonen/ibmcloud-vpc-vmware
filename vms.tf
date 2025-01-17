@@ -45,6 +45,20 @@ data "vsphere_network" "n3" {
   datacenter_id = data.vsphere_datacenter.datacenter.id
 }
 
+resource "terraform_data" "network_ids" {
+  input = {
+    ubuntu11 = {
+      network_id = data.vsphere_network.n1.id
+    }
+    ubuntu21 = {
+      network_id = data.vsphere_network.n2.id
+    }
+    ubuntu22 = {
+      network_id = data.vsphere_network.n3.id
+    }
+  }
+}
+
 # Ubuntu source
 
 data "vsphere_ovf_vm_template" "ovf-ubuntu-24-04-lts" {
@@ -89,7 +103,7 @@ resource "vsphere_virtual_machine" "ubuntu_vms" {
   firmware             = data.vsphere_ovf_vm_template.ovf-ubuntu-24-04-lts.firmware
   scsi_type            = data.vsphere_ovf_vm_template.ovf-ubuntu-24-04-lts.scsi_type
   network_interface {
-    network_id   = each.key == "ubuntu11" ? data.vsphere_network.n1.id : (each.key == "ubuntu21" ? data.vsphere_network.n2.id : data.vsphere_network.n3.id)
+    network_id   = terraform_data.network_ids.output[each.key].network_id
     adapter_type = "vmxnet3"
   }
   cdrom {
