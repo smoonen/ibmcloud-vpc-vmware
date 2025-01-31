@@ -38,10 +38,10 @@ while vcenter['ips'][0]['address'] == '0.0.0.0' :
   vcenter = vpclib.get_vni(vcenter['id'])
 print("vcenter_ip = '%s'" % vcenter['ips'][0]['address'])
 
-# Create NSX VNIs (one for VIP, three for controllers, two for edge mgmt)
+# Create NSX VNIs (one for VIP, three for controllers, two for edge mgmt, four for Avi)
 nsx_vnis = []
 nsx_ips = []
-for suffix in ('', '0', '1', '2', 'edge0', 'edge1') :
+for suffix in ('', '0', '1', '2', 'edge0', 'edge1', 'avi', 'avi0', 'avi1', 'avi2') :
   vni = vpclib.create_or_retrieve_vni("smoonen-vni-nsx" + suffix, subnet_id = inventory.mgmt_subnet_id, security_group = sg['id'])
   while vni['ips'][0]['address'] == '0.0.0.0' :
     time.sleep(1)
@@ -165,6 +165,10 @@ vpclib.create_or_update_Arecord(zone, 'nsx1.example.com', nsx_ips[2]['ip'])
 vpclib.create_or_update_Arecord(zone, 'nsx2.example.com', nsx_ips[3]['ip'])
 vpclib.create_or_update_Arecord(zone, 'edge0.example.com', nsx_ips[4]['ip'])
 vpclib.create_or_update_Arecord(zone, 'edge1.example.com', nsx_ips[5]['ip'])
+vpclib.create_or_update_Arecord(zone, 'avi.example.com', nsx_ips[6]['ip'])
+vpclib.create_or_update_Arecord(zone, 'avi0.example.com', nsx_ips[7]['ip'])
+vpclib.create_or_update_Arecord(zone, 'avi1.example.com', nsx_ips[8]['ip'])
+vpclib.create_or_update_Arecord(zone, 'avi2.example.com', nsx_ips[9]['ip'])
 
 # Post deployment, the ESXi vmk0 interfaces need to be re-IPed to the VLAN VNIs; as part of this the gateway IP and VLAN also need to be corrected.
 # The second vmnic will be used later to bootstrap the DVS; there is no need to add it to the vSwitch in this temporary unmanaged state.

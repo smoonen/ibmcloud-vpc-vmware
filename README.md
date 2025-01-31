@@ -37,6 +37,7 @@ Install packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshk
 12. [terraform.tf](terraform.tf) - Tearraform provider specification; the plan is outlined in:
   - [main.tf](main.tf) - apply Terraform plan to configure NSX for hosts, segment, and edges
   - [vms.tf](vms.tf) and [ubuntu-userdata.yml](ubuntu-userdata.yml) - subsequent to edge configuration, deploy test VMs to each segment
+13. [deploy-avi.ps1](deploy-avi.ps1) - deploy Avi controllers; before running set inventory variable `$avi_admin_password`
 
 ## VPC interface and addressing scheme
 
