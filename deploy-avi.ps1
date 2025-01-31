@@ -58,3 +58,13 @@ for($i = 7; $i -lt 10; $i++) {
 $json = ConvertTo-Json $body -Depth 10
 $result = Invoke-RestMethod -Method POST -Uri https://nsx.example.com/policy/api/v1/alb/controller-nodes/deployments -Body $json -ContentType "application/json" -WebSession $session -SkipCertificateCheck
 
+echo "Wait for Avi deployment to complete . . ."
+$in_progress = $true
+while($in_progress) {
+  Start-Sleep -Seconds 30
+  $result = Invoke-RestMethod -Method GET -uri https://nsx.example.com/policy/api/v1/alb/controller-nodes/cluster -WebSession $session -SkipCertificateCheck
+  if($result.error.error_code -ne 94510) {
+    $in_progress = $false
+  }
+}
+
