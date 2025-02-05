@@ -1,18 +1,18 @@
 # Inspired by https://github.com/vmware-nsx/dcinabox_terraform/
 
 provider "nsxt" {
-  host                 = var.nsx["fqdn"]
-  username             = var.nsx["username"]
-  password             = var.nsx["password"]
+  host                 = var.nsx.fqdn
+  username             = var.nsx.username
+  password             = var.nsx.password
   allow_unverified_ssl = true
   max_retries          = 2
-  license_keys         = [var.nsx["vdefend_key"]]
+  license_keys         = [var.nsx.vdefend_key]
 }
 
 provider "vsphere" {
-  vsphere_server       = var.vcenter["fqdn"]
-  user                 = var.vcenter["username"]
-  password             = var.vcenter["password"]
+  vsphere_server       = var.vcenter.fqdn
+  user                 = var.vcenter.username
+  password             = var.vcenter.password
   allow_unverified_ssl = true
   api_timeout          = 20
 }
@@ -74,12 +74,12 @@ resource "nsxt_policy_ip_pool" "pool1" {
 resource "nsxt_policy_ip_pool_static_subnet" "static_subnet1" {
   display_name = "tep-pool-subnet"
   pool_path    = nsxt_policy_ip_pool.pool1.path
-  cidr         = "192.168.4.0/24"
-  gateway      = "192.168.4.1"
+  cidr         = var.nsx.tep_cidr
+  gateway      = var.nsx.tep_gateway
 
   allocation_range {
-    start = "192.168.4.4"
-    end   = "192.168.4.13"
+    start = var.nsx.tep_first
+    end   = var.nsx.tep_last
   }
 }
 
@@ -88,7 +88,7 @@ resource "nsxt_policy_ip_pool_static_subnet" "static_subnet1" {
 resource "nsxt_policy_uplink_host_switch_profile" "esxi_uplink_profile" {
   display_name = "esxi_uplink_profile"
 
-  transport_vlan = 4
+  transport_vlan = var.nsx.tep_vlan
   overlay_encap  = "GENEVE"
 
   teaming {
@@ -139,7 +139,8 @@ data "nsxt_policy_host_transport_node_collection_realization" "htnc1_realization
 resource "nsxt_policy_vlan_segment" "segment-edge-tep" {
   display_name        = "segment-edge-tep"
   transport_zone_path = data.nsxt_policy_transport_zone.vlan_transport_zone.path
-  vlan_ids            = [4]
+  vlan_ids            = [var.nsx.tep_vlan]
+  depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
 }
 
 data "nsxt_policy_segment_realization" "segment-edge-tep" {
@@ -220,9 +221,9 @@ resource "nsxt_edge_transport_node" "edge_node0" {
       vc_id                 = data.nsxt_compute_manager.vcenter.id
       management_port_subnet {
         ip_addresses  = [var.nsx.edge0]
-        prefix_length = 24
+        prefix_length = var.nsx.edge_prefixlen
       }
-      default_gateway_address = ["192.168.1.1"]
+      default_gateway_address = [var.nsx.edge_gateway]
     }
   }
   node_settings {
@@ -288,9 +289,9 @@ resource "nsxt_edge_transport_node" "edge_node1" {
       vc_id                 = data.nsxt_compute_manager.vcenter.id
       management_port_subnet {
         ip_addresses  = [var.nsx.edge1]
-        prefix_length = 24
+        prefix_length = var.nsx.edge_prefixlen
       }
-      default_gateway_address = ["192.168.1.1"]
+      default_gateway_address = [var.nsx.edge_gateway]
     }
   }
   node_settings {
@@ -312,6 +313,24 @@ data "nsxt_transport_node_realization" "edge_node0_realization" {
 data "nsxt_transport_node_realization" "edge_node1_realization" {
   id      = nsxt_edge_transport_node.edge_node1.id
   timeout = 3000
+}
+
+data "vsphere_virtual_machine" "edge-node-0" {
+  name          = "edge-node-0"
+  datacenter_id = data.vsphere_datacenter.datacenter.id
+  depends_on    = [data.nsxt_transport_node_realization.edge_node0_realization]
+}
+
+data "vsphere_virtual_machine" "edge-node-1" {
+  name          = "edge-node-1"
+  datacenter_id = data.vsphere_datacenter.datacenter.id
+  depends_on    = [data.nsxt_transport_node_realization.edge_node0_realization]
+}
+
+resource "vsphere_compute_cluster_vm_anti_affinity_rule" "edge_anti_affinity_rule" {
+  name                = "edge-anti-affinity-rule"
+  compute_cluster_id  = data.vsphere_compute_cluster.compute_cluster.id
+  virtual_machine_ids = [data.vsphere_virtual_machine.edge-node-0.id, data.vsphere_virtual_machine.edge-node-1.id]
 }
 
 resource "nsxt_edge_cluster" "edgecluster1" {
@@ -343,7 +362,7 @@ data "nsxt_policy_edge_node" "edgenode1" {
 # T0 gateway and uplinks
 
 resource "nsxt_policy_tier0_gateway" "nsx-t0" {
-  display_name             = "smoonen-t0"
+  display_name             = "nsx-t0"
   failover_mode            = "PREEMPTIVE"
   default_rule_logging     = false
   enable_firewall          = true
@@ -383,7 +402,7 @@ resource "nsxt_policy_static_route" "default" {
   network      = "0.0.0.0/0"
 
   next_hop {
-    ip_address = "192.168.5.1"
+    ip_address = var.nsx.uplink_gateway
   }
 }
 
@@ -398,7 +417,7 @@ resource "nsxt_policy_tier0_gateway_ha_vip_config" "ha-vip" {
 # T1 router
 
 resource "nsxt_policy_tier1_gateway" "nsx-t1" {
-  display_name              = "smoonen-t1"
+  display_name              = "nsx-t1"
   edge_cluster_path         = data.nsxt_policy_edge_cluster.edgecluster1.path
   failover_mode             = "PREEMPTIVE"
   default_rule_logging      = false
@@ -414,32 +433,32 @@ resource "nsxt_policy_tier1_gateway" "nsx-t1" {
 
 # This segment will hang off of the T0
 resource "nsxt_policy_segment" "segment1" {
-  display_name        = "segment-10-1-1"
+  display_name        = "segment1"
   transport_zone_path = data.nsxt_policy_transport_zone.overlay_transport_zone.path
   connectivity_path = nsxt_policy_tier0_gateway.nsx-t0.path
   subnet {
-    cidr = "10.1.1.1/24"
+    cidr = var.nsx.overlay1_gw_cidr
   }
   depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
 }
 
 # The remaining segments will hang off of the T1
 resource "nsxt_policy_segment" "segment2" {
-  display_name        = "segment-10-2-1"
+  display_name        = "segment2"
   transport_zone_path = data.nsxt_policy_transport_zone.overlay_transport_zone.path
   connectivity_path = nsxt_policy_tier1_gateway.nsx-t1.path
   subnet {
-    cidr = "10.2.1.1/24"
+    cidr = var.nsx.overlay2_gw_cidr
   }
   depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
 }
 
 resource "nsxt_policy_segment" "segment3" {
-  display_name        = "segment-10-2-2"
+  display_name        = "segment3"
   transport_zone_path = data.nsxt_policy_transport_zone.overlay_transport_zone.path
   connectivity_path = nsxt_policy_tier1_gateway.nsx-t1.path
   subnet {
-    cidr = "10.2.2.1/24"
+    cidr = var.nsx.overlay3_gw_cidr
   }
   depends_on = [data.nsxt_policy_host_transport_node_collection_realization.htnc1_realization]
 }
@@ -486,7 +505,9 @@ resource "nsxt_policy_group" "vpc-private" {
 
   criteria {
     ipaddress_expression {
-      ip_addresses = ["192.168.0.0/16"]
+      # Note that we exclude the vMotion, vSAN, TEP, and overlay subnets
+      # The overlay does not need to intercommunicate with them
+      ip_addresses = [var.nsx.management_cidr]
     }
   }
 }

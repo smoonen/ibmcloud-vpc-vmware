@@ -1,0 +1,41 @@
+{
+  "api_key" : "your IBM Cloud API key",
+  "region" : "selected IBM Cloud region, e.g., eu-gb",
+  "zone" : "selected IBM Cloud zone, e.g., eu-gb-1",
+  "esxi_image_id" : "id for ESXi image in your selected region",
+  "allowed_ips" : ["list of IPs allowed to communicate inbound with Windows bastion VSI"],
+  "dns_instance_id" : "id of your IBM Cloud DNS service instance",
+  "license_keys" : {
+    "vcf" : "VCF license key",
+    "vsan" : "vSAN license key",
+    "vdefend" : "vDefend license key"
+  },
+  "resource_prefix" : "prefix for your resources, e.g., myname",
+  "bastion_pubkey" : "public key *from* bastion server to be set as an allowed key on Ubuntu VMs",
+  "vlans" : {
+    "management" : 1,
+    "vmotion" : 2,
+    "vsan" : 3,
+    "tep" : 4,
+    "uplink" : 5
+  },
+  "subnets" : {
+    "pci" : { "cidr" : "172.16.150.0/24" },
+    "management" : { "cidr" : "192.168.151.0/24" },
+    "vmotion" : { "cidr" : "192.168.152.0/24" },
+    "vsan" : { "cidr" : "192.168.153.0/24" },
+    "tep" : { "cidr" : "192.168.154.0/24" },
+    "uplink" : { "cidr" : "192.168.155.0/24" },
+    "overlay1" : { "cidr" : "192.168.161.0/24" },
+    "overlay2" : { "cidr" : "192.168.162.0/24" },
+    "overlay3" : { "cidr" : "192.168.163.0/24" }
+  },
+  "passwords" : {
+    "vcenter_root" : "vCenter root password",
+    "vcenter_administrator" : "vCenter administrator@vsphere.local password",
+    "nsx_admin" : "NSX admin password",
+    "nsx_cli_admin" : "NSX CLI admin password",
+    "nsx_cli_audit" : "NSX CLI audit password",
+    "avi_admin" : "Avi admin password"
+  }
+}

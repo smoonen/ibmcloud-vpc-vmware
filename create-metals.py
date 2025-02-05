@@ -1,182 +1,117 @@
 from vpc_lib import VPClib
+from inventory import Inventory
 import sshkey_tools.keys
 from cryptography.hazmat.primitives.asymmetric import padding
 import base64, time
-import inventory
 
-# Commonalities and helper methods
-zone1 = { 'name' : 'eu-gb-1' }
+db = Inventory()
+vpclib = VPClib(db.get('region'), db.get('api_key'))
+zone = { 'name' : db.get('zone') }
+
+# Helper methods
 pci_network_attachment = lambda name, vni_id, allowed_vlans = [] : { 'name' : name, 'virtual_network_interface' : { 'id' : vni_id }, 'interface_type' : 'pci', 'allowed_vlans' : allowed_vlans }
 vlan_network_attachment = lambda name, vni_id, vlan, allow_float : { 'name' : name, 'virtual_network_interface' : { 'id' : vni_id }, 'allow_to_float' : allow_float, 'interface_type' : 'vlan', 'vlan' : vlan }
 
-vpclib = VPClib()
-
-# Collect inventory for PowerCLI
-ps_vars = "$hosts = @(\n"
-
-# Create RSA key
-try :
-  rsa_priv = sshkey_tools.keys.RsaPrivateKey.from_string(inventory.rsa_private_key)
-except :
+print("Create or retrieve RSA key")
+if db.get('rsa_key.private_key') :
+  rsa_priv = sshkey_tools.keys.RsaPrivateKey.from_string(db.get('rsa_key.private_key'))
+else :
   rsa_priv = sshkey_tools.keys.RsaPrivateKey.generate()
-  print("rsa_private_key = \"\"\"%s\"\"\"" % rsa_priv.to_string())
-key = vpclib.create_or_retrieve_key(rsa_priv.public_key.to_string(), 'smoonen-rsakey', 'rsa')
-print("key_id = '%s'" % key['id'])
+  db.set('rsa_key.private_key', rsa_priv.to_string())
+key = vpclib.create_or_retrieve_key(rsa_priv.public_key.to_string(), db.get('resource_prefix') + '-rsakey', 'rsa', db.get('rsa_key.id'))
+db.set('rsa_key.id', key['id'])
 
-# Create intra-VPC security group
-sg_rules = [ { 'direction' : 'inbound', 'ip_version' : 'ipv4', 'protocol' : 'all', 'remote' : { 'cidr_block' : '192.168.0.0/16' } },
-             { 'direction' : 'inbound', 'ip_version' : 'ipv4', 'protocol' : 'all', 'remote' : { 'cidr_block' : '10.0.0.0/8' } },
-             { 'direction' : 'outbound', 'ip_version' : 'ipv4', 'protocol' : 'all' } ]
-sg = vpclib.create_or_retrieve_security_group(inventory.vpc_id, sg_rules, 'smoonen-sg-intravpc')
-print("vpc_sg_id = '%s'" % sg['id'])
+print("Create or retrieve intra-VPC security group")
+sg_rules = [ { 'direction' : 'outbound', 'ip_version' : 'ipv4', 'protocol' : 'all' } ]
+for network in db.get('subnets') :
+  sg_rules.append({ 'direction' : 'inbound', 'ip_version' : 'ipv4', 'protocol' : 'all', 'remote' : { 'cidr_block' : db.get("subnets.%s.cidr" % network) } })
+sg = vpclib.create_or_retrieve_security_group(db.get('vpc.id'), sg_rules, db.get('resource_prefix') + '-intravpc-sg', db.get('security_groups.intravpc_sg_id'))
+db.set('security_groups.intravpc_sg_id', sg['id'])
 
-# Create vCenter VNI
-vcenter = vpclib.create_or_retrieve_vni("smoonen-vni-vcenter", subnet_id = inventory.mgmt_subnet_id, security_group = sg['id'])
-print("vcenter_id = '%s'" % vcenter['id'])
-while vcenter['ips'][0]['address'] == '0.0.0.0' :
-  time.sleep(1)
-  vcenter = vpclib.get_vni(vcenter['id'])
-print("vcenter_ip = '%s'" % vcenter['ips'][0]['address'])
+print("Create or retrieve all VNIs")
+# We ultimately need a VNI for every IP we have already reserved.
+# At this point we have created one for the bastion but not for anything else.
+# Use the database as our master plan for VNI creation (excluding overlay networks).
+for network in db.get('subnets') :
+  if 'overlay' not in network :
+    for ip in db.get("subnets.%s.reservations" % network) :
+      if db.get("subnets.%s.reservations.%s.vni" % (network, ip)) is None :
+        vni = vpclib.create_or_retrieve_vni("%s-%s-%s-vni" % (db.get('resource_prefix'), network, ip), primary_ip = db.get("subnets.%s.reservations.%s.id" % (network, ip)), security_group = sg['id'], vni_id = db.get("subnets.%s.reservations.%s.vni" % (network, ip)))
+        db.set("subnets.%s.reservations.%s.vni" % (network, ip), vni['id'])
 
-# Create NSX VNIs (one for VIP, three for controllers, two for edge mgmt, four for Avi)
-nsx_vnis = []
-nsx_ips = []
-for suffix in ('', '0', '1', '2', 'edge0', 'edge1', 'avi', 'avi0', 'avi1', 'avi2') :
-  vni = vpclib.create_or_retrieve_vni("smoonen-vni-nsx" + suffix, subnet_id = inventory.mgmt_subnet_id, security_group = sg['id'])
-  while vni['ips'][0]['address'] == '0.0.0.0' :
-    time.sleep(1)
-    vni = vpclib.get_vni(vni['id'])
-  print("nsx%s_ip = '%s'" % (suffix, vni['ips'][0]['address']))
-  nsx_ips.append({ 'name' : "nsx" + suffix, 'ip' : vni['ips'][0]['address'], 'vni' : vni })
-
-# Create TEP VNIs (ten for now)
-for suffix in range(10) :
-  vni = vpclib.create_or_retrieve_vni("smoonen-vni-nsxtep%d" % suffix, primary_ip = inventory.tep_ip_ids[suffix], security_group = sg['id'])
-  while vni['ips'][0]['address'] == '0.0.0.0' :
-    time.sleep(1)
-    vni = vpclib.get_vni(vni['id'])
-  print("nsxtep%d = '%s'" % (suffix, vni['ips'][0]['address']))
-
-# Create uplink VNIs (two static, one VIP)
-uplink_ips = []
-for suffix in ("0", "1", "vip") :
-  vni = vpclib.create_or_retrieve_vni("smoonen-vni-edgeuplink-%s" % suffix, subnet_id = inventory.uplink_subnet_id, security_group = sg['id'])
-  while vni['ips'][0]['address'] == '0.0.0.0' :
-    time.sleep(1)
-    vni = vpclib.get_vni(vni['id'])
-  print("edgeuplink_%s = '%s'" % (suffix, vni['ips'][0]['address']))
-  uplink_ips.append({ 'name' : "edgeuplink_%s" % suffix, 'ip' : vni['ips'][0]['address'], 'vni' : vni })
-
-# Create three hosts
-vmk1_ips = []
+print("Create or retrieve bare metal servers")
 for host in ('host001', 'host002', 'host003') :
-  # Create the VNIs for PCI / vmnic
+  # The primary network attachment is the host's management PCI interface; we will temporarily access the host using this IP
+  primary_network_attachment = pci_network_attachment('vmnic0', db.get("subnets.pci.reservations.%s-management.vni" % host), [db.get('vlans.management')])
 
-  # vmnic0 - management; this is the only vmnic whose IP address is used, for bootstrapping purposes
-  # This is also the only vmnic where we will initially set allowed VLANS (below), to [2]
-  vmnic0 = vpclib.create_or_retrieve_vni("smoonen-vni-%s-vmnic0" % host, subnet_id = inventory.host_subnet_id, security_group = sg['id'])
-  print("%s_vmnic0_id = '%s'" % (host, vmnic0['id']))
-  while vmnic0['ips'][0]['address'] == '0.0.0.0' :
-    time.sleep(1)
-    vmnic0 = vpclib.get_vni(vmnic0['id'])
-  print("%s_vmnic0_ip = '%s'" % (host, vmnic0['ips'][0]['address']))
-
-  # The remaining vmnics are used for vMotion, vSAN, TEPs, and uplinks.
-  # However, the order in which they are consumed by ESXi is unpredictable.
-  # You should not expect that the PCI index (1-4) matches the vmnic index, and therefore we cannot set allowed VLANs yet.
+  # The additional PCI interfaces are part of our additional attachments
+  # Since we don't know the order in which they will be assigned, we cannot yet initialize their allowed VLAN list
+  # Nor can we attach the VLAN VNIs that will be used for them
   additional_networks = []
-  for x in range(1, 5) :
-    vni = vpclib.create_or_retrieve_vni(subnet_id = inventory.host_subnet_id, name = "smoonen-vni-%s-pci%d" % (host, x), security_group = sg['id'])
-    print("%s_pci%d_id = '%s'" % (host, x, vni['id']))
-    additional_networks.append(pci_network_attachment('pci%d' % x, vni['id']))
+  counter = 1
+  for network in ('vmotion', 'vsan', 'tep', 'uplink') :
+    additional_networks.append(pci_network_attachment("pci%d" % counter, db.get("subnets.pci.reservations.%s-%s.vni" % (host, network))))
+    counter += 1
 
-  # Create the VNIs for VLAN / vmknic
-  # Note that we are leaving TEP and uplink management for later.
-  # Because we aren't assigning most allowed VLANs at this time, we won't be able to attach the vMotion and vSAN VNIs. We will create them now but save attachment for later.
-  vmk_models = ( { 'name' : 'vmk1', 'purpose' : 'mgmt', 'vlan' : 1, 'float' : False, 'attach' : True },
-                 { 'name' : 'vmk0', 'purpose' : 'vmotion', 'attach' : False },
-                 { 'name' : 'vmk2', 'purpose' : 'vsan', 'attach' : False } )
-  for vmk_model in vmk_models :
-    vni = vpclib.create_or_retrieve_vni(subnet_id = getattr(inventory, vmk_model['purpose'] + '_subnet_id'), name = "smoonen-vni-%s-%s-%s" % (host, vmk_model['name'], vmk_model['purpose']), security_group = sg['id'])
-    while vni['ips'][0]['address'] == '0.0.0.0' :
-      time.sleep(1)
-      vni = vpclib.get_vni(vni['id'])
-    print("%s_%s_%s_ip = '%s'" % (host, vmk_model['name'], vmk_model['purpose'], vni['ips'][0]['address']))
-    if vmk_model['purpose'] == 'vmotion' : vmotion_ip = vni['ips'][0]['address']
-    if vmk_model['purpose'] == 'vsan' : vsan_ip = vni['ips'][0]['address']
-    if vmk_model['attach'] :
-      additional_networks.append(vlan_network_attachment(vmk_model['name'], vni['id'], vmk_model['vlan'], vmk_model['float']))
-      vmk1_ips.append(vni['ips'][0]['address'])
+  # Attach the host's managment VMK as a non-floating VNI; we will ultimately access the host using only this IP
+  additional_networks.append(vlan_network_attachment('vmk1', db.get("subnets.management.reservations.%s.vni" % host), db.get('vlans.management'), False))
 
-  # Add vCenter and NSX to first host
-  # Note that we cannot attach TEP IPs right now because we don't know which interface will take on VLAN 5
+  # For host001, attach all VLAN interfaces that will be used by management VMs like vCenter, NSX, and Avi
+  # Use the inventory database as our indication of what to add, filtering out the VSI and bare metals
+  # These interfaces must be allowed to float
   if host == 'host001' :
-    additional_networks.append(vlan_network_attachment('vcenter', vcenter['id'], 1, True))
-    for nsx in nsx_ips :
-      additional_networks.append(vlan_network_attachment(nsx['name'], nsx['vni']['id'], 1, True))
+    for item in db.get('subnets.management.reservations') :
+      if item not in ('bastion', 'host001', 'host002', 'host003') :
+        additional_networks.append(vlan_network_attachment(item, db.get("subnets.management.reservations.%s.vni" % item), db.get('vlans.management'), True))
 
   # Create bare metal
   bm_model = {
-    'vpc'                        : { 'id' : inventory.vpc_id },
-    'zone'                       : zone1,
+    'vpc'                        : { 'id' : db.get('vpc.id') },
+    'zone'                       : zone,
     'name'                       : host,
     'profile'                    : { 'name' : 'bx2d-metal-96x384' },
-    'initialization'             : { 'image' : { 'id': inventory.esxi_image_id },
+    'initialization'             : { 'image' : { 'id': db.get('esxi_image_id') },
                                      'keys'  : [ { 'id' : key['id'] } ] },
     'trusted_platform_module'    : { 'mode' : 'tpm_2' },
     'enable_secure_boot'         : True,
-    'primary_network_attachment' : pci_network_attachment('vmnic0', vmnic0['id'], [1]),
+    'primary_network_attachment' : primary_network_attachment,
     'network_attachments'        : additional_networks
   }
-  bm = vpclib.create_or_retrieve_bare_metal(bm_model)
-  print("%s_bm_id = '%s'" % (host, bm['id']))
+  bm = vpclib.create_or_retrieve_bare_metal(bm_model, db.get("bare_metals.%s.id" % host))
+  db.set("bare_metals.%s.id" % host, bm['id'])
 
+print("Retrieve bare metal server passwords; wait if necessary")
+for host in ('host001', 'host002', 'host003') :
   # Get server initialization information
-  init = vpclib.get_bare_metal_initialization(bm['id'])
+  init = vpclib.get_bare_metal_initialization(db.get("bare_metals.%s.id" % host))
 
-  if len(init['user_accounts']) == 0 :
-    password = 'unset'
-    print("%s_password = 'unset'" % host)
-  else :
-    # Decrypt root password
-    password = rsa_priv.key.decrypt(base64.decodebytes(bytes(init['user_accounts'][0]['encrypted_password'], 'ascii')), padding.PKCS1v15()).decode('ascii')
-    print("%s_password = '%s'" % (host, password))
+  while len(init['user_accounts']) == 0 :
+    time.sleep(15)
+    init = vpclib.get_bare_metal_initialization(db.get("bare_metals.%s.id" % host))
 
-  ps_vars += "@{ name = '%s'; pci = '%s'; vlan = '%s'; vmotion = '%s'; vsan = '%s'; password = '%s' }\n" % (host, vmnic0['ips'][0]['address'], vmk1_ips[-1], vmotion_ip, vsan_ip, password)
+  # Decrypt root password
+  password = rsa_priv.key.decrypt(base64.decodebytes(bytes(init['user_accounts'][0]['encrypted_password'], 'ascii')), padding.PKCS1v15()).decode('ascii')
+  db.set("bare_metals.%s.password" % host, password)
 
 # Note: the key object is attached to the bare metal for the life of the server and cannot be removed at this point
 
 # Find the default routing table and create routes to the edge uplink VIP
-tables = list(vpclib.list_routing_tables(inventory.vpc_id))
+tables = list(vpclib.list_routing_tables(db.get('vpc.id')))
 assert(len(tables) == 1)
-vpclib.create_or_retrieve_route(inventory.vpc_id, tables[0]['id'], 'route11', '10.1.1.0/24', zone1, uplink_ips[2]['ip'])
-vpclib.create_or_retrieve_route(inventory.vpc_id, tables[0]['id'], 'route21', '10.2.1.0/24', zone1, uplink_ips[2]['ip'])
-vpclib.create_or_retrieve_route(inventory.vpc_id, tables[0]['id'], 'route22', '10.2.2.0/24', zone1, uplink_ips[2]['ip'])
+vpclib.create_or_retrieve_route(db.get('vpc.id'), tables[0]['id'], 'route1', db.get('subnets.overlay1.cidr'), zone, db.get('subnets.uplink.reservations.vip.ip'))
+vpclib.create_or_retrieve_route(db.get('vpc.id'), tables[0]['id'], 'route2', db.get('subnets.overlay2.cidr'), zone, db.get('subnets.uplink.reservations.vip.ip'))
+vpclib.create_or_retrieve_route(db.get('vpc.id'), tables[0]['id'], 'route3', db.get('subnets.overlay3.cidr'), zone, db.get('subnets.uplink.reservations.vip.ip'))
 
-# Create or update DNS entries based on the addresses assigned above
-zone = vpclib.create_or_retrieve_zone(inventory.dns_instance_id, 'example.com')
-vpclib.create_or_update_Arecord(zone, 'vcenter.example.com', vcenter['ips'][0]['address'])
-vpclib.create_or_update_Arecord(zone, 'host001.example.com', vmk1_ips[0])
-vpclib.create_or_update_Arecord(zone, 'host002.example.com', vmk1_ips[1])
-vpclib.create_or_update_Arecord(zone, 'host003.example.com', vmk1_ips[2])
-vpclib.create_or_update_Arecord(zone, 'nsx.example.com', nsx_ips[0]['ip'])
-vpclib.create_or_update_Arecord(zone, 'nsx0.example.com', nsx_ips[1]['ip'])
-vpclib.create_or_update_Arecord(zone, 'nsx1.example.com', nsx_ips[2]['ip'])
-vpclib.create_or_update_Arecord(zone, 'nsx2.example.com', nsx_ips[3]['ip'])
-vpclib.create_or_update_Arecord(zone, 'edge0.example.com', nsx_ips[4]['ip'])
-vpclib.create_or_update_Arecord(zone, 'edge1.example.com', nsx_ips[5]['ip'])
-vpclib.create_or_update_Arecord(zone, 'avi.example.com', nsx_ips[6]['ip'])
-vpclib.create_or_update_Arecord(zone, 'avi0.example.com', nsx_ips[7]['ip'])
-vpclib.create_or_update_Arecord(zone, 'avi1.example.com', nsx_ips[8]['ip'])
-vpclib.create_or_update_Arecord(zone, 'avi2.example.com', nsx_ips[9]['ip'])
+# Create or update DNS entries based on the management addresses
+zone = vpclib.create_or_retrieve_zone(db.get('dns_instance_id'), 'example.com')
+for item in db.get('subnets.management.reservations') :
+  vpclib.create_or_update_Arecord(zone, "%s.example.com" % item, db.get("subnets.management.reservations.%s.ip" % item))
+# Do the same for each of our Ubuntu overlay VMs
+for network in db.get('subnets') :
+  if 'overlay' in network :
+    for vmname in db.get("subnets.%s.reservations" % network) :
+      vpclib.create_or_update_Arecord(zone, "%s.example.com" % vmname, db.get("subnets.%s.reservations.%s.ip" % (network, vmname)))
 
 # Post deployment, the ESXi vmk0 interfaces need to be re-IPed to the VLAN VNIs; as part of this the gateway IP and VLAN also need to be corrected.
 # The second vmnic will be used later to bootstrap the DVS; there is no need to add it to the vSwitch in this temporary unmanaged state.
-
-print("\nPowershell variables")
-print(ps_vars + ")")
-print("$nsx = @(")
-for x in nsx_ips :
-  print("@{ name = '%s'; ip = '%s' }" % (x['name'], x['ip']))
-print(")")
 

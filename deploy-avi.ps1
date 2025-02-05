@@ -1,15 +1,17 @@
-Set-PowerCliConfiguration -InvalidCertificateAction Ignore -DefaultVIServerMode Single -Confirm:$false
+# NOTE: This script requires PowerShell 7
 
-# Source inventory data
-. .\inventory.ps1
+Set-PowerCliConfiguration -InvalidCertificateAction Ignore -DefaultVIServerMode Single -ParticipateInCeip:$false -Confirm:$false
+
+# Load inventory data
+$inventory = (Get-Content inventory.json | ConvertFrom-Json)
 
 # Connect to NSX
-$body = @{ j_username = "admin"; j_password = $nsx_password }
+$body = @{ j_username = "admin"; j_password = $inventory.passwords.nsx_admin }
 $response = Invoke-WebRequest -Method POST -Uri https://nsx.example.com/api/session/create -Body $body -SessionVariable session -SkipCertificateCheck
 $session.Headers['X-XSRF-TOKEN'] = $response.Headers['X-XSRF-TOKEN']
 
 # Set Avi VIP
-$body = ConvertTo-Json @{ cluster_ip = $nsx[6].ip; cluster_name = "alb_controller_cluster" }
+$body = ConvertTo-Json @{ cluster_ip = $inventory.subnets.management.reservations.avi.ip; cluster_name = "alb_controller_cluster" }
 $result = Invoke-RestMethod -Method POST -Uri https://nsx.example.com/policy/api/v1/alb/controller-nodes/clusterconfig -Body $body -ContentType "application/json" -WebSession $session -SkipCertificateCheck
 $clusterid = $result.id
 
@@ -17,7 +19,7 @@ $clusterid = $result.id
 $result = Invoke-RestMethod -Method GET -Uri https://nsx.example.com/api/v1/fabric/compute-managers -WebSession $session -SkipCertificateCheck
 $vcenterid = $result.results[0].id
 
-$vc = Connect-VIServer -Server vcenter.example.com -User administrator@vsphere.local -Password $vcenter_sso_password
+$vc = Connect-VIServer -Server vcenter.example.com -User administrator@vsphere.local -Password $inventory.passwords.vcenter_administrator
 $ds = Get-Datastore -Name vsanDatastore
 $cluster = Get-Cluster -Name "london"
 $pg = Get-VDPortgroup "dpg-mgmt"
@@ -33,25 +35,34 @@ $form = @{
 }
 $result = Invoke-RestMethod -Method POST -Uri https://nsx.example.com/api/v1/repository/bundles?action=upload -Form $form -WebSession $session -SkipCertificateCheck
 
+echo "Wait for upload to complete processing"
+$in_progress = $true
+while($in_progress) {
+  Start-Sleep -Seconds 30
+  $result = Invoke-RestMethod -Method GET -Uri "https://nsx.example.com/api/v1/repository/bundles?product=ALB_CONTROLLER&file_type=OVA" -WebSession $session -SkipCertificateCheck
+  if(-not ($result.in_progress)) {
+    $in_progress = $false
+  }
+}
+
 # Deploy controllers
 $body = @{ deployment_requests = @() }
-for($i = 7; $i -lt 10; $i++) {
+for($i = 0; $i -lt 3; $i++) {
   $body.deployment_requests += @{
     form_factor = "SMALL";
-    #clustering_id = $clusterid;
     deployment_config = @{
       placement_type = "AlbControllerVsphereClusterNodeVmDeploymentConfig";
-      display_name = "avi$($i - 7)";
-      hostname = "avi$($i - 7).example.com";
+      display_name = "avi$i";
+      hostname = "avi$i.example.com";
       vc_id = $vcenterid;
-      default_gateway_addresses = @( "192.168.1.1" );
-      management_port_subnets = @( @{ ip_addresses = @( $nsx[$i].ip ); prefix_length = 24; } );
+      default_gateway_addresses = @( $inventory.subnets.management.gateway );
+      management_port_subnets = @( @{ ip_addresses = @( $inventory.subnets.management.reservations."avi$i".ip ); prefix_length = $inventory.subnets.management.prefixlen; } );
       compute_id = $cluster.extensiondata.moref.value;
       management_network_id = $pg.extensiondata.moref.value;
       storage_id = $ds.extensiondata.moref.value;
       storage_policy_id = $policy.id;
     }
-    user_settings = @{ admin_password = $avi_admin_password }
+    user_settings = @{ admin_password = $inventory.passwords.avi_admin }
   }
 }
 

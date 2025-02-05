@@ -1,9 +1,9 @@
-Set-PowerCliConfiguration -InvalidCertificateAction Ignore -DefaultVIServerMode Single -Confirm:$false
+Set-PowerCliConfiguration -InvalidCertificateAction Ignore -DefaultVIServerMode Single -ParticipateInCeip:$false -Confirm:$false
 
-# Source inventory data
-. .\inventory.ps1
+# Load inventory data
+$inventory = (Get-Content inventory.json | ConvertFrom-Json)
 
-$vc = Connect-VIServer -Server vcenter.example.com -User administrator@vsphere.local -Password $vcenter_sso_password
+$vc = Connect-VIServer -Server vcenter.example.com -User administrator@vsphere.local -Password $inventory.passwords.vcenter_administrator
 
 # Create datacenter
 foreach($folder in Get-Folder) {
@@ -16,8 +16,10 @@ $dc = New-Datacenter -Location $dc_folder -Name ibmcloud
 # Create cluster and add hosts
 # Note that we do not specify -HAAdmissionControlEnabled / -HAFailoverLevel 1 only because the cluster is relatively small
 $cluster = New-Cluster -Location $dc -Name london -DrsEnabled -DrsAutomationLevel FullyAutomated -HAEnabled -VsanEnabled -VsanEsaEnabled
-foreach($esxi in $hosts) {
-  Add-VMHost -Location $cluster -Name ($esxi.name + ".example.com") -User root -Password $esxi.password -Force
+# Loop through hosts
+$inventory.bare_metals | Get-Member -Type NoteProperty | ForEach-Object {
+  $esxi = $_.Name
+  Add-VMHost -Location $cluster -Name "$esxi.example.com" -User root -Password $inventory.bare_metals.$esxi.password -Force
 }
 
 # Create switches
@@ -37,29 +39,31 @@ foreach($esxi in $host_list) {
   Add-VDSwitchVMHost -VDSwitch $uplink_switch -VMHost $esxi
 }
 
-# Set allowed VLANs. Note that although this approach is deprecated; I have not been able to get Set-VDVlanConfiguration to work on uplinks.
-Get-VDPortGroup -VDSwitch $mgmt_switch | Set-VDPortGroup -VlanTrunkRange "1"
-Get-VDPortGroup -VDSwitch $vmotion_switch | Set-VDPortGroup -VlanTrunkRange "2"
-Get-VDPortGroup -VDSwitch $vsan_switch | Set-VDPortGroup -VlanTrunkRange "3"
-Get-VDPortGroup -VDSwitch $tep_switch | Set-VDPortGroup -VlanTrunkRange "4"
-Get-VDPortGroup -VDSwitch $uplink_switch | Set-VDPortGroup -VlanTrunkRange "5"
+# Set allowed VLANs. Note that although this approach is deprecated, I have not been able to get Set-VDVlanConfiguration to work on uplinks.
+Get-VDPortGroup -VDSwitch $mgmt_switch | Set-VDPortGroup -VlanTrunkRange "$($inventory.vlans.management)"
+Get-VDPortGroup -VDSwitch $vmotion_switch | Set-VDPortGroup -VlanTrunkRange "$($inventory.vlans.vmotion)"
+Get-VDPortGroup -VDSwitch $vsan_switch | Set-VDPortGroup -VlanTrunkRange "$($inventory.vlans.vsan)"
+Get-VDPortGroup -VDSwitch $tep_switch | Set-VDPortGroup -VlanTrunkRange "$($inventory.vlans.tep)"
+Get-VDPortGroup -VDSwitch $uplink_switch | Set-VDPortGroup -VlanTrunkRange "$($inventory.vlans.uplink)"
 
 # Create portgroups. Note that we do not create a TEP portgroup; the edge TEPs will use a VLAN-backed segment instead.
-$mgmt_portgroup = New-VDPortGroup -VDSwitch $mgmt_switch -Name dpg-mgmt -VlanId 1
-$vmotion_portgroup = New-VDPortGroup -VDSwitch $vmotion_switch -Name dpg-vmotion -VlanId 2
-$vsan_portgroup = New-VDPortGroup -VDSwitch $vsan_switch -Name dpg-vsan -VlanId 3
-$uplink_portgroup = New-VDPortGroup -VDSwitch $uplink_switch -Name dpg-uplink -VlanId 5
+$mgmt_portgroup = New-VDPortGroup -VDSwitch $mgmt_switch -Name dpg-mgmt -VlanId $inventory.vlans.management
+$vmotion_portgroup = New-VDPortGroup -VDSwitch $vmotion_switch -Name dpg-vmotion -VlanId $inventory.vlans.vmotion
+$vsan_portgroup = New-VDPortGroup -VDSwitch $vsan_switch -Name dpg-vsan -VlanId $inventory.vlans.vsan
+$uplink_portgroup = New-VDPortGroup -VDSwitch $uplink_switch -Name dpg-uplink -VlanId $inventory.vlans.uplink
 
 # Create vSAN and vMotion interfaces before we configure management, since we have to migrate vCenter
-foreach($esxi in $hosts) {
-  $vmhost = Get-VMHost -Name ($esxi.name + ".example.com")
+$inventory.bare_metals | Get-Member -Type NoteProperty | ForEach-Object {
+  $esxi = $_.Name
+
+  $vmhost = Get-VMHost -Name "$esxi.example.com"
   foreach($stack in Get-VMHostNetworkStack -VMHost $vmhost) {
     if($stack.ID -eq "vmotion") {
-      New-VMHostNetworkAdapter -VMHost $vmhost -VirtualSwitch $vmotion_switch -NetworkStack $stack -PortGroup $vmotion_portgroup -IP $esxi.vmotion -SubnetMask "255.255.255.0" -Mtu 9000
+      New-VMHostNetworkAdapter -VMHost $vmhost -VirtualSwitch $vmotion_switch -NetworkStack $stack -PortGroup $vmotion_portgroup -IP $inventory.subnets.vmotion.reservations.$esxi.ip -SubnetMask $inventory.subnets.vmotion.netmask -Mtu 9000
     }
   }
-  New-VMHostNetworkAdapter -VMHost $vmhost -VirtualSwitch $vsan_switch -PortGroup $vsan_portgroup -IP $esxi.vsan -SubnetMask "255.255.255.0" -ConsoleNic:$false -ManagementTrafficEnabled:$false -VmotionEnabled:$false -VsanTrafficEnabled:$true -Mtu 9000
-  Get-VMHostNetwork -VMHost $vmhost | Set-VMHostNetwork -VMKernelGatewayDevice vmk2 -VMKernelGateway "192.168.3.1"
+  New-VMHostNetworkAdapter -VMHost $vmhost -VirtualSwitch $vsan_switch -PortGroup $vsan_portgroup -IP $inventory.subnets.vsan.reservations.$esxi.ip -SubnetMask $inventory.subnets.vsan.netmask -ConsoleNic:$false -ManagementTrafficEnabled:$false -VmotionEnabled:$false -VsanTrafficEnabled:$true -Mtu 9000
+  Get-VMHostNetwork -VMHost $vmhost | Set-VMHostNetwork -VMKernelGatewayDevice vmk2 -VMKernelGateway $inventory.subnets.vsan.gateway
 
   $vmnic1 = Get-VMHostNetworkAdapter -VMHost $vmhost -Name vmnic1
   Add-VDSwitchPhysicalNetworkAdapter -DistributedSwitch $vmotion_switch -VMHostPhysicalNIC $vmnic1 -Confirm:$false
@@ -71,7 +75,7 @@ foreach($esxi in $hosts) {
   Add-VDSwitchPhysicalNetworkAdapter -DistributedSwitch $uplink_switch -VMHostPhysicalNIC $vmnic4 -Confirm:$false
 }
 foreach($stack in Get-VMHostNetworkStack -Id vmotion) {
-  Set-VMHostNetworkStack -NetworkStack $stack -VMKernelGateway "192.168.2.1"
+  Set-VMHostNetworkStack -NetworkStack $stack -VMKernelGateway $inventory.subnets.vmotion.gateway
 }
 
 # First migrate managment of host003
@@ -111,14 +115,16 @@ Move-VM -VM $vcenter -Datastore $vsan_ds -StoragePolicy $policy -VMotionPriority
 # Mark vSAN Quickstart as complete
 $cluster.ExtensionData.AbandonHciWorkflow()
 
-# Apply VCF and vSAN keys if present
-if((Get-Variable -Name vcfkey -ErrorAction SilentlyContinue) -and (Get-Variable -Name vsankey -ErrorAction SilentlyContinue)) {
-  $mgr = Get-View $global:DefaultVIServer.ExtensionData.Content.LicenseManager
-  $assign_mgr = Get-View $mgr.LicenseAssignmentManager
-  $assign_mgr.UpdateAssignedLicense($vc.InstanceUuid, $vcfkey, $null)
-  foreach($esxi in Get-VMHost) {
-    $assign_mgr.UpdateAssignedLicense($esxi.ExtensionData.MoRef.Value, $vcfkey, $null)
-  }
-  $assign_mgr.UpdateAssignedLicense($cluster.ExtensionData.MoRef.Value, $vsankey, $null)
+# Apply VCF and vSAN keys
+$mgr = Get-View $global:DefaultVIServer.ExtensionData.Content.LicenseManager
+$assign_mgr = Get-View $mgr.LicenseAssignmentManager
+$assign_mgr.UpdateAssignedLicense($vc.InstanceUuid, $inventory.license_keys.vcf, $null)
+foreach($esxi in Get-VMHost) {
+  $assign_mgr.UpdateAssignedLicense($esxi.ExtensionData.MoRef.Value, $inventory.license_keys.vcf, $null)
 }
+$assign_mgr.UpdateAssignedLicense($cluster.ExtensionData.MoRef.Value, $inventory.license_keys.vsan, $null)
+
+# Set desired image to most recent
+$images = Get-LcmImage -Type "BaseImage"
+Set-Cluster -Cluster $cluster -BaseImage $images[0] -Confirm:$false
 

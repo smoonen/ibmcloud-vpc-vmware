@@ -1,23 +1,3 @@
-# VM settings map
-
-variable "vm_settings" {
-  type    = map(any)
-  default = {
-    ubuntu11 = {
-      ipv4_address = "10.1.1.2"
-      ipv4_gateway = "10.1.1.1"
-    }
-    ubuntu21 = {
-      ipv4_address = "10.2.1.2"
-      ipv4_gateway = "10.2.1.1"
-    }
-    ubuntu22 = {
-      ipv4_address = "10.2.2.2"
-      ipv4_gateway = "10.2.2.1"
-    }
-  }
-}
-
 # Data collection
 
 data "vsphere_resource_pool" "default" {
@@ -47,13 +27,13 @@ data "vsphere_network" "n3" {
 
 resource "terraform_data" "network_ids" {
   input = {
-    ubuntu11 = {
+    ubuntu1 = {
       network_id = data.vsphere_network.n1.id
     }
-    ubuntu21 = {
+    ubuntu2 = {
       network_id = data.vsphere_network.n2.id
     }
-    ubuntu22 = {
+    ubuntu3 = {
       network_id = data.vsphere_network.n3.id
     }
   }
@@ -77,9 +57,10 @@ data "template_file" "userdata" {
   for_each = var.vm_settings
   template = file("${path.module}/ubuntu-userdata.yml")
   vars = {
-    name         = each.key
-    ipv4_address = each.value.ipv4_address
-    ipv4_gateway = each.value.ipv4_gateway
+    name           = each.key
+    ipv4_address   = each.value.ipv4_address
+    ipv4_gateway   = each.value.ipv4_gateway
+    ipv4_prefixlen = each.value.ipv4_prefixlen
   }
 }
 
@@ -133,3 +114,12 @@ resource "vsphere_virtual_machine" "ubuntu_vms" {
   }
 }
 
+resource "vsphere_compute_cluster_vm_anti_affinity_rule" "ubuntu_anti_affinity_rule" {
+  name                = "ubuntu-anti-affinity-rule"
+  compute_cluster_id  = data.vsphere_compute_cluster.compute_cluster.id
+  virtual_machine_ids = [for k, v in vsphere_virtual_machine.ubuntu_vms : v.id]
+
+  lifecycle {
+    replace_triggered_by = [vsphere_virtual_machine.ubuntu_vms]
+  }
+}

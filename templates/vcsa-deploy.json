@@ -4,7 +4,7 @@
     "esxi": {
       "hostname": "host001.example.com",
       "username": "root",
-      "password": "{{ inventory.host001_password }}",
+      "password": "{{ inventory.bare_metals.host001.password }}",
       "deployment_network": "VM Network",
       "datastore": "datastore1"
     },
@@ -16,19 +16,19 @@
     "network": {
       "ip_family": "ipv4",
       "mode": "static",
-      "ip": "{{ inventory.vcenter_ip }}",
+      "ip": "{{ inventory.subnets.management.reservations.vcenter.ip }}",
       "dns_servers": [ "161.26.0.7", "161.26.0.8" ],
-      "prefix": "24",
-      "gateway": "192.168.1.1",
+      "prefix": "{{ inventory.subnets.management.prefixlen }}",
+      "gateway": "{{ inventory.subnets.management.gateway }}",
       "system_name": "vcenter.example.com"
     },
     "os": {
-      "password": "{{ inventory.vcenter_root_password }}",
+      "password": "{{ inventory.passwords.vcenter_root }}",
       "ntp_servers": "161.26.0.6",
       "ssh_enable": true
     },
     "sso": {
-      "password": "{{ inventory.vcenter_sso_password }}",
+      "password": "{{ inventory.passwords.vcenter_administrator }}",
       "domain_name": "vsphere.local"
     }
   },

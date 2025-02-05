@@ -5,6 +5,5 @@ bin/*
 include/*
 lib/*
 pyvenv.cfg
-inventory.py
-inventory.ps1
+inventory.json
 
