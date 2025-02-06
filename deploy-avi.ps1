@@ -49,13 +49,15 @@ while($in_progress) {
 $body = @{ deployment_requests = @() }
 for($i = 0; $i -lt 3; $i++) {
   $body.deployment_requests += @{
-    form_factor = "SMALL";
+    form_factor = "MEDIUM";
     deployment_config = @{
       placement_type = "AlbControllerVsphereClusterNodeVmDeploymentConfig";
       display_name = "avi$i";
       hostname = "avi$i.example.com";
       vc_id = $vcenterid;
       default_gateway_addresses = @( $inventory.subnets.management.gateway );
+      dns_servers = @( "161.26.0.7"; "161.26.0.8");
+      ntp_servers = @( "161.26.0.6" );
       management_port_subnets = @( @{ ip_addresses = @( $inventory.subnets.management.reservations."avi$i".ip ); prefix_length = $inventory.subnets.management.prefixlen; } );
       compute_id = $cluster.extensiondata.moref.value;
       management_network_id = $pg.extensiondata.moref.value;
@@ -78,4 +80,11 @@ while($in_progress) {
     $in_progress = $false
   }
 }
+
+# After deployment, a set of (currently) manual operations needed:
+# 1. Upgrade to Avi 31.x
+# 2. Install Avi license or initiate cloud services connection
+# . . .
+#
+# Note: William Lam has some post deploy scripting to consider here: https://github.com/lamw/vsphere-with-tanzu-nsx-advanced-lb-automated-lab-deployment/blob/master/vsphere-with-tanzu-nsx-advanced-lb-lab-deployment.ps1
 
