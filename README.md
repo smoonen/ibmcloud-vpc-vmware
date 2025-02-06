@@ -3,7 +3,7 @@
 I created this project to explore the IBM Cloud VPC SDK and also to experiment with how ESXi behaves in IBM Cloud VPC.
 
 ## Prerequisites
-Install Python packages `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshkey-tools`.
+Install Python packages `ibm-platform-services`, `ibm-vpc`, `ibm-cloud-networking-services`, `jinja2`, and `sshkey-tools`.
 
 ## Files
 

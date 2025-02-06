@@ -1,3 +1,4 @@
+from ibm_platform_services import GlobalCatalogV1, ResourceManagerV2, ResourceControllerV2
 from ibm_vpc import VpcV1
 from ibm_cloud_networking_services import DnsSvcsV1
 from ibm_cloud_sdk_core.authenticators import IAMAuthenticator
@@ -12,7 +13,9 @@ def VPCiterator(f, listname) :
     result = f(**query).result
     for item in result[listname] : yield item
     if 'next' not in result : break
-    query = urllib.parse.parse_qs(urllib.parse.urlparse(result['next']['href']).query)
+    if isinstance(result['next'], str) : nexturl = result['next']
+    else                               : nexturl = result['next']['href']
+    query = urllib.parse.parse_qs(urllib.parse.urlparse(nexturl).query)
 
 class VPClib :
   def __init__(self, region, api_key) :
@@ -20,6 +23,9 @@ class VPClib :
     authenticator = IAMAuthenticator(api_key)
     self.service = VpcV1(authenticator = authenticator)
     self.service.set_service_url('https://%s.iaas.cloud.ibm.com/v1' % region)
+    self.globalcatalog = GlobalCatalogV1(authenticator = authenticator)
+    self.resourcemgr = ResourceManagerV2(authenticator = authenticator)
+    self.resourcecontroller = ResourceControllerV2(authenticator = authenticator)
     self.dnssvc = DnsSvcsV1(authenticator = authenticator)
     self.dnssvc.set_service_url('https://api.dns-svcs.cloud.ibm.com/v1/')
 
