@@ -84,6 +84,7 @@ while($in_progress) {
 # After deployment, a set of (currently) manual operations needed:
 # 1. Upgrade to Avi 31.x
 # 2. Install Avi license or initiate cloud services connection
+# 3. Connect Avi to NSX or vCenter
 # . . .
 #
 # Note: William Lam has some post deploy scripting to consider here: https://github.com/lamw/vsphere-with-tanzu-nsx-advanced-lb-automated-lab-deployment/blob/master/vsphere-with-tanzu-nsx-advanced-lb-lab-deployment.ps1
