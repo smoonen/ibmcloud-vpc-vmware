@@ -93,6 +93,6 @@ vpclib.attach_public_gateway(db.get('subnets.uplink.subnet_id'), public_gateway[
 vpclib.attach_public_gateway(db.get('subnets.management.subnet_id'), public_gateway['id'])
 
 # Attach this VPC to our DNS instance
-zone = vpclib.create_or_retrieve_zone(db.get('dns_instance_id'), 'example.com')
-vpclib.create_or_retrieve_permitted_network(db.get('dns_instance_id'), zone['id'], vpc['crn'])
+dnsZone = vpclib.create_or_retrieve_zone(db.get('dns_instance_id'), 'example.com')
+vpclib.create_or_retrieve_permitted_network(db.get('dns_instance_id'), dnsZone['id'], vpc['crn'])
 
