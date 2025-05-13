@@ -103,14 +103,14 @@ vpclib.create_or_retrieve_route(db.get('vpc.id'), tables[0]['id'], 'route2', db.
 vpclib.create_or_retrieve_route(db.get('vpc.id'), tables[0]['id'], 'route3', db.get('subnets.overlay3.cidr'), zone, db.get('subnets.uplink.reservations.vip.ip'))
 
 # Create or update DNS entries based on the management addresses
-zone = vpclib.create_or_retrieve_zone(db.get('dns_instance_id'), 'example.com')
+dnsZone = vpclib.create_or_retrieve_zone(db.get('dns_instance_id'), 'example.com')
 for item in db.get('subnets.management.reservations') :
-  vpclib.create_or_update_Arecord(zone, "%s.example.com" % item, db.get("subnets.management.reservations.%s.ip" % item))
+  vpclib.create_or_update_Arecord(dnsZone, "%s.example.com" % item, db.get("subnets.management.reservations.%s.ip" % item))
 # Do the same for each of our Ubuntu overlay VMs
 for network in db.get('subnets') :
   if 'overlay' in network :
     for vmname in db.get("subnets.%s.reservations" % network) :
-      vpclib.create_or_update_Arecord(zone, "%s.example.com" % vmname, db.get("subnets.%s.reservations.%s.ip" % (network, vmname)))
+      vpclib.create_or_update_Arecord(dnsZone, "%s.example.com" % vmname, db.get("subnets.%s.reservations.%s.ip" % (network, vmname)))
 
 # Post deployment, the ESXi vmk0 interfaces need to be re-IPed to the VLAN VNIs; as part of this the gateway IP and VLAN also need to be corrected.
 # The second vmnic will be used later to bootstrap the DVS; there is no need to add it to the vSwitch in this temporary unmanaged state.
